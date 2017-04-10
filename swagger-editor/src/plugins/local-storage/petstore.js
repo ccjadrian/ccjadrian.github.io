@@ -1,1264 +1,707 @@
+// Exports Petstore.yaml
+
 export default `swagger: "2.0"
 info:
-  description: |
-    ## **http header**
-    * **Contetnt-Type**: application/json;charset=UTF-8;
-    * **Authorization**: **Basic** $API_KEY_ID:$API_KEY_SECRET
-      * 可随便填两个字串，但是一定要带上，今后再来填正确的值
-
-  version: 1.0.0
-  title: Kalyke App Service
+  description: "This is a sample server Petstore server.  You can find out more about\
+    \ Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).\
+    \  For this sample, you can use the api key \`special-key\` to test the authorization\
+    \ filters."
+  version: "1.0.0"
+  title: "Swagger Petstore"
+  termsOfService: "http://swagger.io/terms/"
   contact:
-    email: liqin323@gmail.com
-host: 119.23.45.58
-basePath: /v1
+    email: "apiteam@swagger.io"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "petstore.swagger.io"
+basePath: "/v2"
 tags:
-  - name: authentication
-  - name: account
+- name: "pet"
+  description: "Everything about your Pets"
+  externalDocs:
+    description: "Find out more"
+    url: "http://swagger.io"
+- name: "store"
+  description: "Access to Petstore orders"
+- name: "user"
+  description: "Operations about user"
+  externalDocs:
+    description: "Find out more about our store"
+    url: "http://swagger.io"
 schemes:
-  - http
+- "http"
 paths:
-  /server/version:
-    get:
-      tags:
-        - authentication
-      summary: 返回服务器版本，用于ping测试
-      operationId: getServerVersion
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      responses:
-        200:
-          description: "Return server name, version and build time"
-          schema:
-            type: object
-            required:
-              - svr_name
-              - svr_ver
-              - svr_build_time
-            properties:
-              svr_name:
-                type: string
-              svr_ver:
-                type: string
-              svr_build_time:
-                type: string
-            example:
-              svr_name: kalyke demo server
-              svr_ver: 0.00
-              svr_build_time: 2017.4.7
-        default:
-          description: "Error code definitions"
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /auth/accessTokens:
+  /pet:
     post:
       tags:
-        - authentication
-      summary: Create an access token (login)
-      operationId: createAccessToken
+      - "pet"
+      summary: "Add a new pet to the store"
+      description: ""
+      operationId: "addPet"
       consumes:
-        - application/json
+      - "application/json"
+      - "application/xml"
       produces:
-        - application/json
+      - "application/xml"
+      - "application/json"
       parameters:
-        - in: body
-          name: body
-          required: true
-          schema:
-            type: object
-            properties:
-              grant_type:
-                type: string
-                default: phone
-                enum:
-                  - phone
-                  - user_name
-                  - email
-                  - refresh_token
-              password:
-                type: string
-              refresh_token:
-                type: string
-              phone:
-                type: string
-                description: If grant_type== "phone", it must be needed
-              user_name:
-                type: string
-                description: If grant_type== "user_name", it must be needed
-              email:
-                type: string
-                description: If grant_type== "email", it must be needed
-            example:
-              grant_type: "phone"
-              phone: "13688129904"
-              password: "654321"
+      - in: "body"
+        name: "body"
+        description: "Pet object that needs to be added to the store"
+        required: true
+        schema:
+          $ref: "#/definitions/Pet"
       responses:
-        'default':
-          description: ""
-          schema:
-            $ref: '#/definitions/ErrorModel'
-        '201':
-          description: Create access token successfully
-          schema:
-            type: object
-            required:
-              - access_token
-              - expires_in
-              - refresh_token
-            properties:
-              href:
-                type: string
-              account_id:
-                type: string
-              account_type:
-                type: string
-              access_token:
-                type: string
-              expires_in:
-                type: integer
-                format: int64
-              refresh_token:
-                type: string
-          examples:
-            application/json:
-              href: "http://112.74.51.210:8090/v1/accounts/0"
-              account_id: "0"
-              account_type: "worker"
-              access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ"
-              expires_in: 2147483647
-              refresh_token: "IiwiYWRtaW4iOnRydWV9"
-        '200':
-          description: Refresh access token successfully
-          schema:
-            type: object
-            required:
-              - access_token
-              - expires_in
-              - refresh_token
-            properties:
-              access_token:
-                type: string
-              expires_in:
-                type: integer
-                format: int64
-              refresh_token:
-                type: string
-          examples:
-            application/json:
-              access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ"
-              expires_in: 2147483647
-              refresh_token: "IiwiYWRtaW4iOnRydWV9"
-
-  /accounts:
+        405:
+          description: "Invalid input"
+      security:
+      - petstore_auth:
+        - "write:pets"
+        - "read:pets"
+    put:
+      tags:
+      - "pet"
+      summary: "Update an existing pet"
+      description: ""
+      operationId: "updatePet"
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Pet object that needs to be added to the store"
+        required: true
+        schema:
+          $ref: "#/definitions/Pet"
+      responses:
+        400:
+          description: "Invalid ID supplied"
+        404:
+          description: "Pet not found"
+        405:
+          description: "Validation exception"
+      security:
+      - petstore_auth:
+        - "write:pets"
+        - "read:pets"
+  /pet/findByStatus:
     get:
       tags:
-        - account
-      summary: 查询账号列表
-      description: ''
-      operationId: getAllAccounts
-      consumes:
-        - application/json
+      - "pet"
+      summary: "Finds Pets by status"
+      description: "Multiple status values can be provided with comma separated strings"
+      operationId: "findPetsByStatus"
       produces:
-        - application/json
+      - "application/xml"
+      - "application/json"
       parameters:
-        - in: query
-          name: accessToken
-          required: true
-          type: string
+      - name: "status"
+        in: "query"
+        description: "Status values that need to be considered for filter"
+        required: true
+        type: "array"
+        items:
+          type: "string"
+          enum:
+          - "available"
+          - "pending"
+          - "sold"
+          default: "available"
+        collectionFormat: "multi"
       responses:
         200:
-          description: Successfully
+          description: "successful operation"
           schema:
-            type: object
-            description: return array of account url
-            required:
-              - accounts
-            properties:
-              accounts:
-                type: array
-                items:
-                  type: string
-        default:
-          description: |
-            Error code definition
-          schema:
-            $ref: '#/definitions/ErrorModel'
-    post:
-      tags:
-        - account
-      summary: 客户端创建账号，目前只会由管理员创建
-      operationId: addAccount
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          name: body
-          required: true
-          schema:
-            type: object
-            required:
-              - grant_type
-              - phone
-              - pv_code
-              - password
-            properties:
-              grant_type:
-                type: string
-                default: phone
-                enum:
-                  - phone
-                  - user_name
-                  - email
-              password:
-                type: string
-              phone:
-                type: string
-                description: If grant_type== "phone", it must be needed
-              pv_code:
-                type: string
-                description: If grant_type== "phone", it must be needed
-              user_name:
-                type: string
-                description: If grant_type== "user_name", it must be needed
-              email:
-                type: string
-                description: If grant_type== "email", it must be needed
-            example:
-              grant_type: "phone"
-              phone: "13688129904"
-              pv_code: "123456"
-              password: "654321"
-      responses:
-        '201':
-          description: 创建成功，返回账号href
-          schema:
-            type: object
-            required:
-              - href
-            properties:
-              href:
-                type: string
-          examples:
-            application/json:
-              href: "http://112.74.51.210:8090/v1/accounts/0"
-        'default':
-          description: |
-            * **10000**: ERR_UNEXPECTED
-            * **1000**: ERR_AC_ALREADY_EXIST
-            * **1001**: ERR_AC_PVCODE_INVALID
-            * **1002**: ERR_AC_PVCODE_NOT_MATCH
-            * **1003**: ERR_AC_PVCODE_EXPIRE
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/{accountId}:
-    get:
-      tags:
-        - account
-      summary: 查询账号信息
-      operationId: queryAccount
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: accountId
-          description: ID of the account
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-      responses:
-        '200':
-          description: 查询成功，返回账号数据
-          schema:
-            $ref: '#/definitions/AccountModel'
-        'default':
-          description: ''
-          schema:
-            $ref: '#/definitions/ErrorModel'
-    post:
-      tags:
-        - account
-      summary: 更新账户信息
-      operationId: setAccount
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: accountId
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-        - in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/AccountModel"
-      responses:
-        200:
-          description: 更新成功，返回账号href
-          schema:
-            $ref: '#/definitions/HrefObject'
-        default:
-          description: |
-            Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/{accountId}/roles:
-    get:
-      tags:
-        - account
-      summary: 返回账号的角色
-      operationId: queryAccountRoles
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: accountId
-          description: ID of the account
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-      responses:
-        '200':
-          description: Get account's roles by account ID successfully
-          schema:
-            type: array
+            type: "array"
             items:
-              $ref: '#/definitions/RoleModel'
-        'default':
-          description: ''
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/{accountId}/projects:
+              $ref: "#/definitions/Pet"
+        400:
+          description: "Invalid status value"
+      security:
+      - petstore_auth:
+        - "write:pets"
+        - "read:pets"
+  /pet/findByTags:
     get:
       tags:
-        - project
-        - account
-      summary: 查询属于指定用户的项目
-      operationId: getProjectsByAccount
-      consumes:
-        - application/json
+      - "pet"
+      summary: "Finds Pets by tags"
+      description: "Muliple tags can be provided with comma separated strings. Use\
+        \ tag1, tag2, tag3 for testing."
+      operationId: "findPetsByTags"
       produces:
-        - application/json
+      - "application/xml"
+      - "application/json"
       parameters:
-        - in: path
-          name: accountId
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
+      - name: "tags"
+        in: "query"
+        description: "Tags to filter by"
+        required: true
+        type: "array"
+        items:
+          type: "string"
+        collectionFormat: "multi"
       responses:
         200:
-          description: 返回项目href列表
+          description: "successful operation"
           schema:
-            $ref: '#/definitions/ProjectHrefList'
-        default:
-          description: |
-            Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/{accountId}/tasks:
+            type: "array"
+            items:
+              $ref: "#/definitions/Pet"
+        400:
+          description: "Invalid tag value"
+      security:
+      - petstore_auth:
+        - "write:pets"
+        - "read:pets"
+      deprecated: true
+  /pet/{petId}:
     get:
       tags:
-        - account
-        - task
-      summary: 返回指定用户的任务
-      operationId: getTasksByAccount
-      consumes:
-        - application/json
+      - "pet"
+      summary: "Find pet by ID"
+      description: "Returns a single pet"
+      operationId: "getPetById"
       produces:
-        - application/json
+      - "application/xml"
+      - "application/json"
       parameters:
-        - in: path
-          name: accountId
-          type: string
-          required: true
-        - in: query
-          name: accessToken
-          type: string
-          required: true
+      - name: "petId"
+        in: "path"
+        description: "ID of pet to return"
+        required: true
+        type: "integer"
+        format: "int64"
       responses:
         200:
-          description: 任务href列表
+          description: "successful operation"
           schema:
-            type: object
-            properties:
-              tasks:
-                type: array
-                items:
-                  type: string
-        default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/phoneVerificationCodes:
+            $ref: "#/definitions/Pet"
+        400:
+          description: "Invalid ID supplied"
+        404:
+          description: "Pet not found"
+      security:
+      - api_key: []
     post:
       tags:
-        - account
-      summary: Create code of phone for verification
-      operationId: createPVCode
+      - "pet"
+      summary: "Updates a pet in the store with form data"
+      description: ""
+      operationId: "updatePetWithForm"
       consumes:
-        - application/json
+      - "application/x-www-form-urlencoded"
       produces:
-        - application/json
+      - "application/xml"
+      - "application/json"
       parameters:
-        - in: body
-          name: body
-          description: ''
-          required: true
-          schema:
-            type: object
-            required:
-              - phone
-              - action
-            properties:
-              phone:
-                type: string
-                description: phone number
-              action:
-                type: string
-                description: the action which the code is used for
-                enum:
-                  - register
-                  - login
-                  - setPassword
+      - name: "petId"
+        in: "path"
+        description: "ID of pet that needs to be updated"
+        required: true
+        type: "integer"
+        format: "int64"
+      - name: "name"
+        in: "formData"
+        description: "Updated name of the pet"
+        required: false
+        type: "string"
+      - name: "status"
+        in: "formData"
+        description: "Updated status of the pet"
+        required: false
+        type: "string"
       responses:
-        '201':
-          description: Create verification code successfully
-        'default':
-          description: |
-            * **10000**: ERR_UNEXPECTED
-            * **1004**: ERR_PVCODE_INVALID_PHONE_NUMBER
-            * **1005**: ERR_PVCODE_SEND_COUNT_EXCEED
-            * **1006**: ERR_PVCODE_INVALID_INTERVAL
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/passwords:
+        405:
+          description: "Invalid input"
+      security:
+      - petstore_auth:
+        - "write:pets"
+        - "read:pets"
+    delete:
+      tags:
+      - "pet"
+      summary: "Deletes a pet"
+      description: ""
+      operationId: "deletePet"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "api_key"
+        in: "header"
+        required: false
+        type: "string"
+      - name: "petId"
+        in: "path"
+        description: "Pet id to delete"
+        required: true
+        type: "integer"
+        format: "int64"
+      responses:
+        400:
+          description: "Invalid ID supplied"
+        404:
+          description: "Pet not found"
+      security:
+      - petstore_auth:
+        - "write:pets"
+        - "read:pets"
+  /pet/{petId}/uploadImage:
     post:
       tags:
-        - account
-      summary: Reset password of an account
-      operationId: resetPswd
+      - "pet"
+      summary: "uploads an image"
+      description: ""
+      operationId: "uploadFile"
       consumes:
-        - application/json
+      - "multipart/form-data"
       produces:
-        - application/json
+      - "application/json"
       parameters:
-        - in: body
-          name: body
-          description: ''
-          required: true
-          schema:
-            type: object
-            required:
-              - phone
-              - password
-              - pv_code
-            properties:
-              phone:
-                type: string
-                description: phone number
-              password:
-                type: string
-                description: new password
-              pv_code:
-                type: string
-                description: phone verification code
+      - name: "petId"
+        in: "path"
+        description: "ID of pet to update"
+        required: true
+        type: "integer"
+        format: "int64"
+      - name: "additionalMetadata"
+        in: "formData"
+        description: "Additional data to pass to server"
+        required: false
+        type: "string"
+      - name: "file"
+        in: "formData"
+        description: "file to upload"
+        required: false
+        type: "file"
       responses:
-        '200':
-          description: (Re)set password successfully
-        'default':
-          description: |
-            * **10000**: ERR_UNEXPECTED
-            * **1004**: ERR_PVCODE_INVALID_PHONE_NUMBER
-            * **1005**: ERR_PVCODE_SEND_COUNT_EXCEED
-            * **1006**: ERR_PVCODE_INVALID_INTERVAL
-            * **1007**: ERR_PVCODE_NOT_MATCH
-            * **1008**: ERR_PVCODE_EXPIRED
+        200:
+          description: "successful operation"
           schema:
-            $ref: '#/definitions/ErrorModel'
-  /projects:
+            $ref: "#/definitions/ApiResponse"
+      security:
+      - petstore_auth:
+        - "write:pets"
+        - "read:pets"
+  /store/inventory:
     get:
       tags:
-        - project
-      summary: 查询项目列表
-      operationId: getAllProjects
-      consumes:
-        - application/json
+      - "store"
+      summary: "Returns pet inventories by status"
+      description: "Returns a map of status codes to quantities"
+      operationId: "getInventory"
       produces:
-        - application/json
-      parameters:
-        - in: query
-          name: accessToken
-          type: string
-          required: true
+      - "application/json"
+      parameters: []
       responses:
         200:
-          description: 所有项目的href列表
+          description: "successful operation"
           schema:
-            $ref: '#/definitions/ProjectHrefList'
-        default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
+            type: "object"
+            additionalProperties:
+              type: "integer"
+              format: "int32"
+      security:
+      - api_key: []
+  /store/order:
     post:
       tags:
-        - project
-      summary: 创建项目
-      operationId: createProject
-      consumes:
-        - application/json
+      - "store"
+      summary: "Place an order for a pet"
+      description: ""
+      operationId: "placeOrder"
       produces:
-        - application/json
+      - "application/xml"
+      - "application/json"
       parameters:
-        - in: query
-          name: accessToken
-          type: string
-          required: true
-        - in: body
-          name: body
-          required: true
-          schema:
-            $ref: '#/definitions/ProjectBasisModel'
+      - in: "body"
+        name: "body"
+        description: "order placed for purchasing the pet"
+        required: true
+        schema:
+          $ref: "#/definitions/Order"
       responses:
         200:
-          description: Href of new project
+          description: "successful operation"
           schema:
-            $ref: '#/definitions/HrefObject'
-        default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /projects/workTypes:
+            $ref: "#/definitions/Order"
+        400:
+          description: "Invalid Order"
+  /store/order/{orderId}:
     get:
       tags:
-        - project
-      summary: 查询项目工作类型列表
-      operationId: getWorkTypes
-      consumes:
-        - application/json
+      - "store"
+      summary: "Find purchase order by ID"
+      description: "For valid response try integer IDs with value >= 1 and <= 10.\
+        \ Other values will generated exceptions"
+      operationId: "getOrderById"
       produces:
-        - application/json
+      - "application/xml"
+      - "application/json"
       parameters:
-        - in: query
-          name: accessToken
-          required: true
-          type: string
+      - name: "orderId"
+        in: "path"
+        description: "ID of pet that needs to be fetched"
+        required: true
+        type: "integer"
+        maximum: 10.0
+        minimum: 1.0
+        format: "int64"
       responses:
         200:
-          description: 所有项目的工作类型
+          description: "successful operation"
           schema:
-            type: object
-            properties:
-              work_types:
-                type: array
-                items:
-                  $ref: '#/definitions/ProjectWorkType'
+            $ref: "#/definitions/Order"
+        400:
+          description: "Invalid ID supplied"
+        404:
+          description: "Order not found"
+    delete:
+      tags:
+      - "store"
+      summary: "Delete purchase order by ID"
+      description: "For valid response try integer IDs with positive integer value.\
+        \ Negative or non-integer values will generate API errors"
+      operationId: "deleteOrder"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "orderId"
+        in: "path"
+        description: "ID of the order that needs to be deleted"
+        required: true
+        type: "integer"
+        minimum: 1.0
+        format: "int64"
+      responses:
+        400:
+          description: "Invalid ID supplied"
+        404:
+          description: "Order not found"
+  /user:
+    post:
+      tags:
+      - "user"
+      summary: "Create user"
+      description: "This can only be done by the logged in user."
+      operationId: "createUser"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Created user object"
+        required: true
+        schema:
+          $ref: "#/definitions/User"
+      responses:
         default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /projects/{projectId}:
+          description: "successful operation"
+  /user/createWithArray:
+    post:
+      tags:
+      - "user"
+      summary: "Creates list of users with given input array"
+      description: ""
+      operationId: "createUsersWithArrayInput"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "List of user object"
+        required: true
+        schema:
+          type: "array"
+          items:
+            $ref: "#/definitions/User"
+      responses:
+        default:
+          description: "successful operation"
+  /user/createWithList:
+    post:
+      tags:
+      - "user"
+      summary: "Creates list of users with given input array"
+      description: ""
+      operationId: "createUsersWithListInput"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "List of user object"
+        required: true
+        schema:
+          type: "array"
+          items:
+            $ref: "#/definitions/User"
+      responses:
+        default:
+          description: "successful operation"
+  /user/login:
     get:
       tags:
-        - project
-      summary: Get Project By ID
-      operationId: getProject
-      consumes:
-        - application/json
+      - "user"
+      summary: "Logs user into the system"
+      description: ""
+      operationId: "loginUser"
       produces:
-        - application/json
+      - "application/xml"
+      - "application/json"
       parameters:
-        - in: path
-          name: projectId
-          type: string
-          required: true
-        - in: query
-          name: accessToken
-          required: true
-          type: string
+      - name: "username"
+        in: "query"
+        description: "The user name for login"
+        required: true
+        type: "string"
+      - name: "password"
+        in: "query"
+        description: "The password for login in clear text"
+        required: true
+        type: "string"
       responses:
         200:
-          description: Detail information about selected project
+          description: "successful operation"
           schema:
-            $ref: '#/definitions/ProjectDetailModel'
-        default:
-          description: Error code definitions
-          schema:
-            $ref: "#/definitions/ErrorModel"
-  /projects/{projectId}/status:
-    post:
-      tags:
-        - project
-      summary: 更新项目的进度状态
-      operationId: setProgress
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: projectId
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-        - in: body
-          name: body
-          required: true
-          schema:
-            $ref: '#/definitions/ProjectStatus'
-      responses:
-        200:
-          description: 项目进度更新成功,返回项目的href
-          schema:
-            $ref: '#/definitions/HrefObject'
-        default:
-          description: Error code definitions
-          schema:
-            $ref: "#/definitions/ErrorModel"
-  /projects/{projectId}/application:
-    post:
-      tags:
-        - project
-      summary: 项目信息更新:申报评审相关
-      operationId: setProjectApplication
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: projectId
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-        - in: body
-          name: body
-          required: true
-          schema:
-            $ref: '#/definitions/ProjectApplicationModel'
-      responses:
-        200:
-          description: 更新后项目的href
-          schema:
-            $ref: '#/definitions/HrefObject'
-        default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /projects/{projectId}/team:
-    post:
-      tags:
-        - project
-      summary: 项目数据更新:负责人与执行成员
-      operationId: setProjectMembers
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: projectId
-          type: string
-          required: true
-        - in: query
-          name: accessToken
-          type: string
-          required: true
-        - in: body
-          name: body
-          schema:
-            type: object
-            properties:
-              manager:
-                description: 负责人
-                type: string
-              members:
-                description: 组员id
-                type: array
-                items:
-                  type: string
-      responses:
-        200:
-          description: 返回项目href
-        default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /projects/{projectId}/tasks:
-    post:
-      tags:
-        - project
-      summary: 项目数据更新:任务划分
-      operationId: setProjectTasks
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: projectId
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-        - in: body
-          name: body
-          required: true
-          schema:
-            type: object
-            properties:
-              tasks:
-                description: 任务列表
-                type: array
-                items:
-                  type: object
-                  properties:
-                    name:
-                      description: 任务名称
-                      type: string
-                    content:
-                      description: 任务描述
-                      type: string
-                    assign_to:
-                      description: 任务负责人
-                      type: string
-                    execute:
-                      description: 执行小组
-                      type: array
-                      items:
-                        type: string
-                    start_ts:
-                      description: 开始时间
-                      type: integer
-                      format: int64
-                    end_ts:
-                      description: 结束时间
-                      type: integer
-                      format: int64
-      responses:
-        200:
-          description: 更新成功,返回项目href
-          schema:
-            $ref: '#/definitions/HrefObject'
-        default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /projects/{projectId}/judgement:
-    post:
-      tags:
-        - project
-      summary: 项目数据更新:项目结项评审相关
-      operationId: setProjectJudgement
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: projectId
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-        - in: body
-          name: body
-          required: true
-          schema:
-            $ref: '#/definitions/ProjectJudgementModel'
-      responses:
-        200:
-          description: 更新成功,返回项目href
-          schema:
-            $ref: '#/definitions/HrefObject'
-        default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /tasks/{taskId}:
+            type: "string"
+          headers:
+            X-Rate-Limit:
+              type: "integer"
+              format: "int32"
+              description: "calls per hour allowed by the user"
+            X-Expires-After:
+              type: "string"
+              format: "date-time"
+              description: "date in UTC when token expires"
+        400:
+          description: "Invalid username/password supplied"
+  /user/logout:
     get:
       tags:
-        - task
-      summary: 查询任务信息
-      operationId: getTask
-      consumes:
-        - application/json
+      - "user"
+      summary: "Logs out current logged in user session"
+      description: ""
+      operationId: "logoutUser"
       produces:
-        - application/json
-      parameters:
-        - in: path
-          name: taskId
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
+      - "application/xml"
+      - "application/json"
+      parameters: []
       responses:
-        200:
-          description: 返回任务信息
-          schema:
-            $ref: '#/definitions/TaskModel'
         default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /organization:
+          description: "successful operation"
+  /user/{username}:
     get:
       tags:
-        - organization
-      summary: 查询组织架构，包括科室及职务
-      operationId: getOrganization
-      consumes:
-        - application/json
+      - "user"
+      summary: "Get user by user name"
+      description: ""
+      operationId: "getUserByName"
       produces:
-        - application/json
+      - "application/xml"
+      - "application/json"
       parameters:
-        - in: query
-          name: accessToken
-          required: true
-          type: string
+      - name: "username"
+        in: "path"
+        description: "The name that needs to be fetched. Use user1 for testing. "
+        required: true
+        type: "string"
       responses:
         200:
-          description: 返回组织架构信息
+          description: "successful operation"
           schema:
-            $ref: '#/definitions/OrganizationModel'
-        default:
-          description: Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
+            $ref: "#/definitions/User"
+        400:
+          description: "Invalid username supplied"
+        404:
+          description: "User not found"
+    put:
+      tags:
+      - "user"
+      summary: "Updated user"
+      description: "This can only be done by the logged in user."
+      operationId: "updateUser"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "username"
+        in: "path"
+        description: "name that need to be updated"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "body"
+        description: "Updated user object"
+        required: true
+        schema:
+          $ref: "#/definitions/User"
+      responses:
+        400:
+          description: "Invalid user supplied"
+        404:
+          description: "User not found"
+    delete:
+      tags:
+      - "user"
+      summary: "Delete user"
+      description: "This can only be done by the logged in user."
+      operationId: "deleteUser"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "username"
+        in: "path"
+        description: "The name that needs to be deleted"
+        required: true
+        type: "string"
+      responses:
+        400:
+          description: "Invalid username supplied"
+        404:
+          description: "User not found"
+securityDefinitions:
+  petstore_auth:
+    type: "oauth2"
+    authorizationUrl: "http://petstore.swagger.io/oauth/dialog"
+    flow: "implicit"
+    scopes:
+      write:pets: "modify pets in your account"
+      read:pets: "read your pets"
+  api_key:
+    type: "apiKey"
+    name: "api_key"
+    in: "header"
 definitions:
-  HrefObject:
-    type: object
-    required:
-      - href
-    properties:
-      href:
-        type: string
-    example:
-        href: "http://YOUR_HOUST/v1/PATH/DATA_ID"
-  ProjectWorkType:
-    type: object
+  Order:
+    type: "object"
     properties:
       id:
-        type: string
-      name:
-        type: string
-  ProjectHrefList:
-    type: object
-    required:
-      - projects
-    properties:
-      projects:
-        description: 请求数据的href列表
-        type: array
-        items:
-          type: string
-  ProjectStatus:
-    type: object
-    properties:
+        type: "integer"
+        format: "int64"
+      petId:
+        type: "integer"
+        format: "int64"
+      quantity:
+        type: "integer"
+        format: "int32"
+      shipDate:
+        type: "string"
+        format: "date-time"
       status:
-        description: |
-          项目进度:
-          * 1 申报评审
-          * 2 项目启动
-          * 3 项目督办
-          * 4 项目结项
-        type: integer
-  ProjectApplicationModel:
-    type: object
+        type: "string"
+        description: "Order Status"
+        enum:
+        - "placed"
+        - "approved"
+        - "delivered"
+      complete:
+        type: "boolean"
+        default: false
+    xml:
+      name: "Order"
+  Category:
+    type: "object"
     properties:
-      result:
-        description: |
-          立项评审结果
-          0 待评审
-          1 通过
-          2 未通过
-        type: integer
-      leader:
-        description: 立项评审负责人
-        type: string
-      member:
-        description: '立项评审团人员'
-        type: array
-        items:
-          type: string
-      comment:
-        description: '立项评审意见汇总'
-        type: string
-      application_file:
-        description: '立项申请表'
-        type: string
-      report_file:
-        description: 立项评审报告
-        type: string
-      approval_file:
-        description: 立项批准书
-        type: string
-      review_ts:
-        description: '立项评审时间'
-        type: integer
-        format: int64
-  ProjectJudgementModel:
-    type: object
-    properties:
-      result:
-        description: |
-          结项评审结果
-          0 待评审
-          1 通过
-          2 未通过
-        type: integer
-      leader:
-        description: '结项评审负责人'
-        type: string
-      member:
-        description: '结项评审团人员'
-        type: string
-      comment:
-        description: '结项评审意见汇总'
-        type: string
-      report_file:
-        description: '结项报告附件'
-        type: string
-      harvest:
-        description: '项目成果'
-        type: string
-      harvest_file:
-        description: '项目成果附件'
-        type: string
-      conclusion:
-        description: '结项总结'
-        type: string
-      judge_file:
-        description: '结项评审报告附件'
-        type: string
-      judge_ts:
-        description: '结项评审时间'
-        type: integer
-        format: int64
-      actual_ts:
-        description: '实际结项时间'
-        type: integer
-        format: int64
-  TaskModel:
-    type: object
-    properties:
+      id:
+        type: "integer"
+        format: "int64"
       name:
-        description: 任务名称
-        type: string
-      content:
-        description: 任务描述
-        type: string
-      assign_to:
-        description: 任务负责人
-        type: string
-      execute:
-        description: 执行小组
-        type: array
-        items:
-          type: string
-      start_ts:
-        description: 开始时间
-        type: integer
-        format: int64
-      end_ts:
-        description: 结束时间
-        type: integer
-        format: int64
-      status:
-        description: 任务状态：0未完成；1已完成
-        type: integer
-        format: int32
-      note:
-        type: string
-      report_href:
-        type: string
-  ProjectBasisModel:
-    type: object
+        type: "string"
+    xml:
+      name: "Category"
+  User:
+    type: "object"
     properties:
-      name:
-        description: 项目名称
-        type: string
-      content:
-        description: 项目内容
-        type: string
-      objective:
-        description: 项目目标
-        type: string
-      manager:
-        description: 项目负责人href
-        type: string
-      member:
-        description: 项目成员href
-        type: array
-        items:
-          type: string
-      office:
-        description: 办公室id
-        type: string
-      work_type:
-        description: 工作类型id
-        type: string
-      start_ts:
-        description: 项目开始时间
-        type: integer
-        format: int64
-      end_ts:
-        description: 项目结束时间
-        type: integer
-        format: int64
-      progress:
-        description: |
-          项目进度:
-          * 1 申报评审
-          * 2 项目启动
-          * 3 项目督办
-          * 4 项目结项
-        type: integer
-      application_file:
-        description: 申请材料
-        type: string
-  ProjectDetailModel:
-    type: object
-    properties:
-      name:
-        description: 项目名称
-        type: string
-      content:
-        description: 项目内容
-        type: string
-      objective:
-        description: 项目目标
-        type: string
-      manager:
-        description: 项目负责人href
-        type: string
-      member:
-        description: 项目成员href
-        type: array
-        items:
-          type: string
-      office:
-        description: 办公室id
-        type: string
-      work_type:
-        description: 工作类型id
-        type: string
-      start_ts:
-        description: 项目开始时间
-        type: integer
-        format: int64
-      end_ts:
-        description: 项目结束时间
-        type: integer
-        format: int64
-      progress:
-        description: |
-          项目进度:
-          * 1 申报评审
-          * 2 项目启动
-          * 3 项目督办
-          * 4 项目结项
-        type: integer
-      application_file:
-        description: 申请材料
-        type: string
-      plan:
-        $ref: '#/definitions/ProjectApplicationModel'
-      tasks:
-        description: 项目下所有的任务href数组
-        type: array
-        items:
-          type: string
-      judge:
-        $ref: '#/definitions/ProjectJudgementModel'
-  AccountModel:
-    type: object
-    properties:
-      #id:
-      #  description: 用户id
-      #  type: string
-      user_name:
-        description: 登录名
-        type: string
-      password:
-        description: 密码
-        type: string
-      name:
-        description: 姓名
-        type: string
-      gender:
-        description: "性别: 0-女,1-男"
-        type: integer
-      phone:
-        description: 电话
-        type: string
-      office:
-        description: 科室id
-        type: string
-      title:
-        description: 职务id
-        type: string
-      id_card:
-        description: 身份证
-      land_line:
-        description: 座机
+      id:
+        type: "integer"
+        format: "int64"
+      username:
+        type: "string"
+      firstName:
+        type: "string"
+      lastName:
+        type: "string"
       email:
-        type: string
-      qq:
-        type: string
-      degree:
-        description: 学历
-        type: string
-      college:
-        description: 毕业院校
-        type: string
-      folk:
-        description: 民族
-        type: string
-      paper:
-        description: 论文
-        type: string
-      home_address:
-        description: 家庭地址
-        type: string
-      contact_address:
-        description: 通讯地址
-        type: string
-      create_ts:
-        description: 注册时间
-        type: integer
-        format: int64
-      roles:
-        type: array
-        items:
-          $ref: '#/definitions/RoleModel'
-  TitleModel:
-    type: object
+        type: "string"
+      password:
+        type: "string"
+      phone:
+        type: "string"
+      userStatus:
+        type: "integer"
+        format: "int32"
+        description: "User Status"
+    xml:
+      name: "User"
+  Tag:
+    type: "object"
     properties:
       id:
-        type: string
+        type: "integer"
+        format: "int64"
       name:
-        type: string
-  OfficeModel:
-    type: object
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-      titles:
-        type: array
-        items:
-          $ref: '#/definitions/TitleModel'
-  OrganizationModel:
-    type: object
-    properties:
-      offices:
-        type: array
-        items:
-          $ref: '#/definitions/OfficeModel'
-  RoleModel:
-    type: object
+        type: "string"
+    xml:
+      name: "Tag"
+  Pet:
+    type: "object"
     required:
-      - id
-      - href
-      - name
-      - permissions
+    - "name"
+    - "photoUrls"
     properties:
       id:
-        type: string
-      href:
-        type: string
+        type: "integer"
+        format: "int64"
+      category:
+        $ref: "#/definitions/Category"
       name:
-        type: string
-      display_name:
-        type: string
-      description:
-        type: string
-      permissions:
-        type: array
+        type: "string"
+        example: "doggie"
+      photoUrls:
+        type: "array"
+        xml:
+          name: "photoUrl"
+          wrapped: true
         items:
-          $ref: '#/definitions/PermissionModel'
-  PermissionModel:
-    type: object
-    required:
-      - id
-      - href
-      - name
-      - action
-    properties:
-      id:
-        type: string
-      href:
-        type: string
-      name:
-        type: string
-      display_name:
-        type: string
-      description:
-        type: string
-      object_type:
-        type: string
-        description: "A string identifying the type of object this permission applies to"
-      action:
-        type: string
-        description: "A string indicating the type of action this permission permits"
-      instance:
-        type: string
-        description: 'A string containing the primary ID of the object instance this permission applies to, or "\*" indicating that it applies to all instances. If the given action does not allow instance specification, "\*" should always be used.'
-  ErrorModel:
-    type: object
-    required:
-      - status
-      - code
-    properties:
+          type: "string"
+      tags:
+        type: "array"
+        xml:
+          name: "tag"
+          wrapped: true
+        items:
+          $ref: "#/definitions/Tag"
       status:
-        type: integer
-        description: "The corresponding HTTP status code"
+        type: "string"
+        description: "pet status in the store"
+        enum:
+        - "available"
+        - "pending"
+        - "sold"
+    xml:
+      name: "Pet"
+  ApiResponse:
+    type: "object"
+    properties:
       code:
-        type: integer
-        description: "An specific error code that can be used to obtain more information"
+        type: "integer"
+        format: "int32"
+      type:
+        type: "string"
       message:
-        type: string
-        description: "A simple, easy to understand message that you can show directly to your application"
-      message_ext:
-        type: string
-        description: "A clear, plain text explanation with technical details that might assist a developer calling the API"
-    example:
-      status: 501
-      code: 10000
-      message:  "Unexpected error"
-      message_ext: ""`
+        type: "string"
+externalDocs:
+  description: "Find out more about Swagger"
+  url: "http://swagger.io"`
