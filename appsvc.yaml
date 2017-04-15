@@ -310,7 +310,7 @@ paths:
         '200':
           description: 创建成功，返回账号href
           schema:
-            $ref: '#/definitions/HrefObjectEx'
+            $ref: '#/definitions/HrefObject'
         'default':
           description: ''
           schema:
@@ -339,7 +339,12 @@ paths:
         '200':
           description: 查询成功，返回账号数据
           schema:
-            $ref: '#/definitions/AccountModel'
+            allOf:
+            - type: object
+              properties:
+                id:
+                  type: string
+            - $ref: '#/definitions/AccountModel'
         'default':
           description: ''
           schema:
@@ -1086,17 +1091,8 @@ definitions:
     properties:
       href:
         type: string
-    #example:
-        #href: "http://YOUR_HOUST/v1/PATH/DATA_ID"
-  HrefObjectEx:
-    allOf:
-      - type: object
-        properties:
-          x1:
-            type: string
-          x2:
-            type: string
-      - $ref: '#/definitions/HrefObject'
+    example:
+        href: "http://YOUR_HOUST/v1/PATH/DATA_ID"
   ProjectWorkType:
     type: object
     properties:
