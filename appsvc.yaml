@@ -1086,8 +1086,8 @@ definitions:
     properties:
       href:
         type: string
-    example:
-        href: "http://YOUR_HOUST/v1/PATH/DATA_ID"
+    #example:
+        #href: "http://YOUR_HOUST/v1/PATH/DATA_ID"
   HrefObjectEx:
     allOf:
       - type: object
