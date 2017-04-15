@@ -167,6 +167,14 @@ paths:
           name: accessToken
           required: true
           type: string
+        - in: query
+          name: offset
+          required: true
+          type: integer
+        - in: query
+          name: limit
+          required: true
+          type: integer
       responses:
         200:
           description: Successfully
@@ -188,7 +196,7 @@ paths:
     post:
       tags:
         - account
-      summary: 客户端创建账号，目前只会由管理员创建
+      summary: '客户端创建账号，目前只会用到API:/accounts/users'
       operationId: addAccount
       consumes:
         - application/json
@@ -252,6 +260,59 @@ paths:
             * **1001**: ERR_AC_PVCODE_INVALID
             * **1002**: ERR_AC_PVCODE_NOT_MATCH
             * **1003**: ERR_AC_PVCODE_EXPIRE
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /accounts/users:
+    post:
+      tags:
+        - account
+      summary: 通过管理员创建帐号
+      operationId: createAccountByAdmin
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              user_name:
+                description: 登录名
+                type: string
+              password:
+                description: 密码
+                type: string
+              name:
+                description: 姓名
+                type: string
+              gender:
+                description: "性别: 0-女,1-男"
+                type: integer
+              phone:
+                description: 手机号
+                type: string
+              office:
+                description: 科室id
+                type: string
+              titles:
+                description: 职务id
+                type: array
+                items:
+                  type: string
+      responses:
+        '200':
+          description: 创建成功，返回账号href
+          schema:
+            $ref: '#/definitions/HrefObjectEx'
+        'default':
+          description: ''
           schema:
             $ref: '#/definitions/ErrorModel'
   /accounts/{accountId}:
@@ -715,6 +776,7 @@ paths:
     post:
       tags:
         - project
+        - task
       summary: 项目数据更新:任务划分
       operationId: setProjectTasks
       consumes:
@@ -751,7 +813,7 @@ paths:
                     assign_to:
                       description: 任务负责人
                       type: string
-                    execute:
+                    executors:
                       description: 执行小组
                       type: array
                       items:
@@ -834,12 +896,145 @@ paths:
           description: Error code definitions
           schema:
             $ref: '#/definitions/ErrorModel'
-  /organization:
+  /task/{taskId}/status:
+    post:
+      tags:
+        - task
+      summary: "修改任务状态：0未完成；1已完成"
+      operationId: setTaskStatus
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              status:
+                type: integer
+      responses:
+        200:
+          description: 返回任务href
+          schema:
+            $ref: '#/definitions/HrefObject'
+        default:
+            description: Error code definitions
+            schema:
+              $ref: '#/definitions/ErrorModel'
+  /task/{taskId}/note:
+    post:
+      tags:
+        - task
+      summary: 修改任务备注
+      operationId: setTaskNote
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              note:
+                type: string
+      responses:
+        200:
+          description: 返回任务href
+          schema:
+            $ref: '#/definitions/HrefObject'
+        default:
+            description: Error code definitions
+            schema:
+              $ref: '#/definitions/ErrorModel'
+  /task/{taskId}/report:
+    post:
+      tags:
+        - task
+      summary: 更新任务报告
+      operationId: setTaskReport
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              report_file:
+                type: string
+      responses:
+        200:
+          description: 返回任务href
+          schema:
+            $ref: '#/definitions/HrefObject'
+        default:
+            description: Error code definitions
+            schema:
+              $ref: '#/definitions/ErrorModel'
+#  /organization:
+#    get:
+#      deprecated: true
+#      tags:
+#        - organization
+#      summary: 查询组织架构，包括科室及职务
+#      operationId: getOrganization
+#      consumes:
+#        - application/json
+#      produces:
+#        - application/json
+#      parameters:
+#        - in: query
+#          name: accessToken
+#          required: true
+#          type: string
+#      responses:
+#        200:
+#          description: 返回组织架构信息
+#          schema:
+#            $ref: '#/definitions/OrganizationModel'
+#        default:
+#          description: Error code definitions
+#          schema:
+#            $ref: '#/definitions/ErrorModel'
+  /offices:
     get:
       tags:
         - organization
-      summary: 查询组织架构，包括科室及职务
-      operationId: getOrganization
+      summary: 查询办公室列表
+      operationId: getAllOffices
       consumes:
         - application/json
       produces:
@@ -851,13 +1046,38 @@ paths:
           type: string
       responses:
         200:
-          description: 返回组织架构信息
+          description: 返回所有办公室
           schema:
-            $ref: '#/definitions/OrganizationModel'
-        default:
-          description: Error code definitions
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              titles:
+                type: array
+                items:
+                  type: string
+  /offices/titles:
+    get:
+      tags:
+        - organization
+      summary: 查询职务列表
+      operationId: GetAllTitles
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        200:
+          description: 返回职务列表
           schema:
-            $ref: '#/definitions/ErrorModel'
+            $ref: '#/definitions/TitleModel'
 definitions:
   HrefObject:
     type: object
@@ -868,6 +1088,15 @@ definitions:
         type: string
     example:
         href: "http://YOUR_HOUST/v1/PATH/DATA_ID"
+  HrefObjectEx:
+    allOf:
+      - type: object
+        properties:
+          x1:
+            type: string
+          x2:
+            type: string
+      - $ref: '#/definitions/HrefObject'
   ProjectWorkType:
     type: object
     properties:
@@ -909,7 +1138,7 @@ definitions:
       leader:
         description: 立项评审负责人
         type: string
-      member:
+      members:
         description: '立项评审团人员'
         type: array
         items:
@@ -943,9 +1172,11 @@ definitions:
       leader:
         description: '结项评审负责人'
         type: string
-      member:
+      members:
         description: '结项评审团人员'
-        type: string
+        type: array
+        items:
+            type: string
       comment:
         description: '结项评审意见汇总'
         type: string
@@ -984,7 +1215,7 @@ definitions:
       assign_to:
         description: 任务负责人
         type: string
-      execute:
+      executors:
         description: 执行小组
         type: array
         items:
@@ -1003,7 +1234,7 @@ definitions:
         format: int32
       note:
         type: string
-      report_href:
+      report_file:
         type: string
   ProjectBasisModel:
     type: object
@@ -1020,7 +1251,7 @@ definitions:
       manager:
         description: 项目负责人href
         type: string
-      member:
+      members:
         description: 项目成员href
         type: array
         items:
@@ -1065,7 +1296,7 @@ definitions:
       manager:
         description: 项目负责人href
         type: string
-      member:
+      members:
         description: 项目成员href
         type: array
         items:
@@ -1119,18 +1350,30 @@ definitions:
       name:
         description: 姓名
         type: string
+      nick_name:
+        description: 昵称
+        type: string
+      avatar:
+        description: 头像
+        type: string
       gender:
         description: "性别: 0-女,1-男"
         type: integer
       phone:
-        description: 电话
+        description: 手机号
         type: string
       office:
         description: 科室id
         type: string
-      title:
+      titles:
         description: 职务id
-        type: string
+        type: array
+        items:
+          type: string
+      roles:
+        type: array
+        items:
+          $ref: '#/definitions/RoleModel'
       id_card:
         description: 身份证
       land_line:
@@ -1161,10 +1404,6 @@ definitions:
         description: 注册时间
         type: integer
         format: int64
-      roles:
-        type: array
-        items:
-          $ref: '#/definitions/RoleModel'
   TitleModel:
     type: object
     properties:
@@ -1183,13 +1422,15 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/TitleModel'
-  OrganizationModel:
-    type: object
-    properties:
-      offices:
-        type: array
-        items:
-          $ref: '#/definitions/OfficeModel'
+
+#  OrganizationModel:
+#    type: object
+#    properties:
+#      offices:
+#        type: array
+#        items:
+#          $ref: '#/definitions/OfficeModel'
+
   RoleModel:
     type: object
     required:
