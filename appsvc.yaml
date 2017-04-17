@@ -21,7 +21,7 @@ paths:
   /server/version:
     get:
       tags:
-        - authentication
+        - finish
       summary: 返回服务器版本，用于ping测试
       operationId: getServerVersion
       consumes:
@@ -33,10 +33,6 @@ paths:
           description: "Return server name, version and build time"
           schema:
             type: object
-            required:
-              - svr_name
-              - svr_ver
-              - svr_build_time
             properties:
               svr_name:
                 type: string
@@ -44,10 +40,6 @@ paths:
                 type: string
               svr_build_time:
                 type: string
-            example:
-              svr_name: kalyke demo server
-              svr_ver: 0.00
-              svr_build_time: 2017.4.7
         default:
           description: "Error code definitions"
           schema:
@@ -155,6 +147,7 @@ paths:
     get:
       tags:
         - account
+        - finish
       summary: 查询账号列表
       description: ''
       operationId: getAllAccounts
@@ -266,6 +259,7 @@ paths:
     post:
       tags:
         - account
+        - finish
       summary: 通过管理员创建帐号
       operationId: createAccountByAdmin
       consumes:
@@ -319,6 +313,7 @@ paths:
     get:
       tags:
         - account
+        - finish
       summary: 查询账号信息
       operationId: queryAccount
       consumes:
@@ -340,10 +335,7 @@ paths:
           description: 查询成功，返回账号数据
           schema:
             allOf:
-            - type: object
-              properties:
-                id:
-                  type: string
+            - $ref: '#/definitions/IdObject'
             - $ref: '#/definitions/AccountModel'
         'default':
           description: ''
@@ -619,6 +611,7 @@ paths:
     get:
       tags:
         - project
+        - finish
       summary: 查询项目工作类型列表
       operationId: getWorkTypes
       consumes:
@@ -667,7 +660,9 @@ paths:
         200:
           description: Detail information about selected project
           schema:
-            $ref: '#/definitions/ProjectDetailModel'
+            allOf:
+            - $ref: '#/definitions/IdObject'
+            - $ref: '#/definitions/ProjectDetailModel'
         default:
           description: Error code definitions
           schema:
@@ -1084,6 +1079,11 @@ paths:
           schema:
             $ref: '#/definitions/TitleModel'
 definitions:
+  IdObject:
+    type: object
+    properties:
+      id:
+        type: string
   HrefObject:
     type: object
     required:
@@ -1097,7 +1097,7 @@ definitions:
     type: object
     properties:
       id:
-        type: string
+        type: integer
       name:
         type: string
   ProjectHrefList:
@@ -1257,7 +1257,7 @@ definitions:
         type: string
       work_type:
         description: 工作类型id
-        type: string
+        type: integer
       start_ts:
         description: 项目开始时间
         type: integer
@@ -1266,14 +1266,6 @@ definitions:
         description: 项目结束时间
         type: integer
         format: int64
-      progress:
-        description: |
-          项目进度:
-          * 1 申报评审
-          * 2 项目启动
-          * 3 项目督办
-          * 4 项目结项
-        type: integer
       application_file:
         description: 申请材料
         type: string
@@ -1302,7 +1294,7 @@ definitions:
         type: string
       work_type:
         description: 工作类型id
-        type: string
+        type: integer
       start_ts:
         description: 项目开始时间
         type: integer
@@ -1319,9 +1311,6 @@ definitions:
           * 3 项目督办
           * 4 项目结项
         type: integer
-      application_file:
-        description: 申请材料
-        type: string
       plan:
         $ref: '#/definitions/ProjectApplicationModel'
       tasks:
@@ -1407,17 +1396,6 @@ definitions:
         type: string
       name:
         type: string
-  OfficeModel:
-    type: object
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-      titles:
-        type: array
-        items:
-          $ref: '#/definitions/TitleModel'
 
 #  OrganizationModel:
 #    type: object
@@ -1499,3 +1477,4 @@ definitions:
       code: 10000
       message:  "Unexpected error"
       message_ext: ""
+
