@@ -6,6 +6,13 @@ info:
     * **Authorization**: **Basic** $API_KEY_ID:$API_KEY_SECRET
       * 可随便填两个字串，但是一定要带上，今后再来填正确的值
 
+    ## **说明**
+    * account是系统层面的，代表系统中一个账号，它有它自己的信息（比如电话，用户名，email），这些信息都强制保证在系统的唯一性，作为登录的凭证。
+    * staff是业务逻辑中的一个对象，它也有他自己的信息（比如职位，科室，联系电话等等），这些信息就不必唯一（或是根据具体业务逻辑来限定是否唯一）。
+    * account与staff一一对应，用account id进行关联。
+    * 管理员创建账号，无需另外接口。使用POST /accounts?accessToken=xxx，就只需要传grant_type,phone/user_name,password即可
+    * POST /accounts 时，grant_type选择phone，user_name，email其一，后面就只带其中一个参数，不是全部都填上
+
   version: 1.0.0
   title: Kalyke App Service
   contact:
@@ -15,6 +22,7 @@ basePath: /v1
 tags:
   - name: authentication
   - name: account
+  - name: account role
 schemes:
   - http
 paths:
@@ -60,12 +68,15 @@ paths:
           required: true
           schema:
             type: object
+            required:
+              - grant_type
             properties:
               grant_type:
                 type: string
                 default: phone
                 enum:
                   - phone
+                  - pv_code
                   - user_name
                   - email
                   - refresh_token
@@ -76,6 +87,9 @@ paths:
               phone:
                 type: string
                 description: If grant_type== "phone", it must be needed
+              pv_code:
+                type: string
+                description: If grant_type== "pv_code", it must be needed
               user_name:
                 type: string
                 description: If grant_type== "user_name", it must be needed
@@ -139,63 +153,28 @@ paths:
                 type: string
           examples:
             application/json:
+              href: "http://112.74.51.210:8090/v1/accounts/0"
+              account_id: "0"
+              account_type: "worker"
               access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ"
               expires_in: 2147483647
               refresh_token: "IiwiYWRtaW4iOnRydWV9"
-
   /accounts:
-    get:
-      tags:
-        - account
-        - finish
-      summary: 查询账号列表
-      description: ''
-      operationId: getAllAccounts
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-        - in: query
-          name: offset
-          required: true
-          type: integer
-        - in: query
-          name: limit
-          required: true
-          type: integer
-      responses:
-        200:
-          description: Successfully
-          schema:
-            type: object
-            description: return array of account url
-            required:
-              - accounts
-            properties:
-              accounts:
-                type: array
-                items:
-                  type: string
-        default:
-          description: |
-            Error code definition
-          schema:
-            $ref: '#/definitions/ErrorModel'
     post:
       tags:
         - account
-      summary: '客户端创建账号，目前只会用到API:/accounts/users'
+      summary: Create(Register) an account
+      description: ''
       operationId: addAccount
       consumes:
         - application/json
       produces:
         - application/json
       parameters:
+        - in: query
+          name: type
+          required: true
+          type: string
         - in: body
           name: body
           required: true
@@ -235,16 +214,20 @@ paths:
               password: "654321"
       responses:
         '201':
-          description: 创建成功，返回账号href
+          description: Create account successfully
           schema:
             type: object
             required:
+              - id
               - href
             properties:
+              id:
+                type: string
               href:
                 type: string
           examples:
             application/json:
+              id: "0"
               href: "http://112.74.51.210:8090/v1/accounts/0"
         'default':
           description: |
@@ -253,220 +236,6 @@ paths:
             * **1001**: ERR_AC_PVCODE_INVALID
             * **1002**: ERR_AC_PVCODE_NOT_MATCH
             * **1003**: ERR_AC_PVCODE_EXPIRE
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/users:
-    post:
-      tags:
-        - account
-        - finish
-      summary: 通过管理员创建帐号
-      operationId: createAccountByAdmin
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-        - in: body
-          name: body
-          required: true
-          schema:
-            type: object
-            properties:
-              user_name:
-                description: 登录名
-                type: string
-              password:
-                description: 密码
-                type: string
-              name:
-                description: 姓名
-                type: string
-              gender:
-                description: "性别: 0-女,1-男"
-                type: integer
-              phone:
-                description: 手机号
-                type: string
-              office:
-                description: 科室id
-                type: string
-              titles:
-                description: 职务id
-                type: array
-                items:
-                  type: string
-      responses:
-        '200':
-          description: 创建成功，返回账号href
-          schema:
-            $ref: '#/definitions/HrefObject'
-        'default':
-          description: ''
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/{accountId}:
-    get:
-      tags:
-        - account
-        - finish
-      summary: 查询账号信息
-      operationId: queryAccount
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: accountId
-          description: ID of the account
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-      responses:
-        '200':
-          description: 查询成功，返回账号数据
-          schema:
-            allOf:
-            - $ref: '#/definitions/IdObject'
-            - $ref: '#/definitions/AccountModel'
-        'default':
-          description: ''
-          schema:
-            $ref: '#/definitions/ErrorModel'
-    post:
-      tags:
-        - account
-      summary: 更新账户信息
-      operationId: setAccount
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: accountId
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-        - in: body
-          name: body
-          required: true
-          schema:
-            $ref: "#/definitions/AccountModel"
-      responses:
-        200:
-          description: 更新成功，返回账号href
-          schema:
-            $ref: '#/definitions/HrefObject'
-        default:
-          description: |
-            Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/{accountId}/roles:
-    get:
-      tags:
-        - account
-      summary: 返回账号的角色
-      operationId: queryAccountRoles
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: accountId
-          description: ID of the account
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-      responses:
-        '200':
-          description: Get account's roles by account ID successfully
-          schema:
-            type: array
-            items:
-              $ref: '#/definitions/RoleModel'
-        'default':
-          description: ''
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/{accountId}/projects:
-    get:
-      tags:
-        - project
-        - account
-      summary: 查询属于指定用户的项目
-      operationId: getProjectsByAccount
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: accountId
-          required: true
-          type: string
-        - in: query
-          name: accessToken
-          required: true
-          type: string
-      responses:
-        200:
-          description: 返回项目href列表
-          schema:
-            $ref: '#/definitions/ProjectHrefList'
-        default:
-          description: |
-            Error code definitions
-          schema:
-            $ref: '#/definitions/ErrorModel'
-  /accounts/{accountId}/tasks:
-    get:
-      tags:
-        - account
-        - task
-      summary: 返回指定用户的任务
-      operationId: getTasksByAccount
-      consumes:
-        - application/json
-      produces:
-        - application/json
-      parameters:
-        - in: path
-          name: accountId
-          type: string
-          required: true
-        - in: query
-          name: accessToken
-          type: string
-          required: true
-      responses:
-        200:
-          description: 任务href列表
-          schema:
-            type: object
-            properties:
-              tasks:
-                type: array
-                items:
-                  type: string
-        default:
-          description: Error code definitions
           schema:
             $ref: '#/definitions/ErrorModel'
   /accounts/phoneVerificationCodes:
@@ -480,6 +249,12 @@ paths:
       produces:
         - application/json
       parameters:
+        - in: query
+          name: accessToken
+          description: |
+            用户登录后，修改密码需带上, 即action == setPassword
+          required: false
+          type: string
         - in: body
           name: body
           description: ''
@@ -522,6 +297,12 @@ paths:
       produces:
         - application/json
       parameters:
+        - in: query
+          name: accessToken
+          description: |
+            用户登录后，修改密码需带上
+          required: false
+          type: string
         - in: body
           name: body
           description: ''
@@ -555,10 +336,411 @@ paths:
             * **1008**: ERR_PVCODE_EXPIRED
           schema:
             $ref: '#/definitions/ErrorModel'
+  /accounts/{accountId}:
+    get:
+      tags:
+        - account
+      summary: Get an account information
+      operationId: queryAccount
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: accountId
+          description: ID of the account
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Get account by ID successfully
+          schema:
+            $ref: '#/definitions/AccountModel'
+        'default':
+          description: ''
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /accounts/{accountId}/roles:
+    get:
+      tags:
+        - account
+      summary: Get roles of an account
+      operationId: queryAccountRoles
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: accountId
+          description: ID of the account
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Get account's roles by account ID successfully
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/RoleModel'
+        'default':
+          description: ''
+          schema:
+            $ref: '#/definitions/ErrorModel'
+    post:
+      tags:
+        - account
+      summary: Modify roles of an account
+      operationId: modifyAccountRoles
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: accountId
+          description: ID of the account
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: ''
+          required: true
+          schema:
+            type: object
+            required:
+              - roles
+            properties:
+              roles:
+                type: array
+                description: role IDs array
+                items:
+                  type: string
+      responses:
+        '200':
+          description: Modify account's roles by account ID successfully
+        'default':
+          description: ''
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /roles:
+    get:
+      tags:
+        - role
+      summary: Get all roles
+      operationId: queryRoles
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Get all roles successfully
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/RoleModel"
+    post:
+      tags:
+        - role
+      summary: Create a role
+      operationId: createRole
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: ''
+          required: true
+          schema:
+            type: object
+            required:
+              - name
+              - display_name
+              - permissions
+            properties:
+              name:
+                type: string
+                description: the name of role
+              display_name:
+                type: string
+                description: the display name of role
+              description:
+                type: string
+                description: ''
+              permissions:
+                type: array
+                description: permission id array
+                items:
+                  type: string
+      responses:
+        '201':
+          description: Create role successfully
+          schema:
+            type: object
+            required:
+              - href
+            properties:
+              href:
+                type: string
+            example:
+              href: "http://112.74.51.210:8090/v1/accounts/roles/0"
+  /permissions:
+    get:
+      tags:
+        - role
+      summary: Get all permissions
+      operationId: queryPermissions
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Gey all permission for corporation
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/PermissionModel'
+        'default':
+          description: ''
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /roles/{roleId}/permissions:
+    get:
+      tags:
+        - role
+      summary: Get permissions of a role
+      operationId: getPermissionsRole
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: roleId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Gey all permissions successfully
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/PermissionModel'
+        'default':
+          description: ''
+          schema:
+            $ref: '#/definitions/ErrorModel'
+    post:
+      tags:
+        - role
+      summary: Modify permissions in a role
+      operationId: modifyPermisionsRole
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: roleId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+        - in: body
+          name: body
+          description: ''
+          required: true
+          schema:
+            type: object
+            required:
+              - permissions
+            properties:
+              permissions:
+                type: array
+                description: permissiion IDs array
+                items:
+                  type: string
+      responses:
+        '200':
+          description: Modify permissions sucessfully
+        'default':
+          description: ''
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /roles/{roleId}/permissions/{permissionId}:
+    delete:
+      tags:
+        - role
+      summary: Remove a permission in a role
+      operationId: deletePermisionRole
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: roleId
+          required: true
+          type: string
+        - in: path
+          name: permissionId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Remove permission sucessfully
+        'default':
+          description: ''
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /staff:
+    get:
+      tags:
+        - staff
+        - finish
+      summary: 查询所有用户的非帐号相关资料(一般是与业务有关的信息)
+      operationId: getAllStaff
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+        - in: query
+          name: offset
+          required: true
+          type: integer
+        - in: query
+          name: limit
+          required: true
+          type: integer
+      responses:
+        200:
+          description: href列表
+          schema:
+            type: object
+            properties:
+              staff:
+                type: array
+                items:
+                  type: string
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /staff/{accountId}:
+    get:
+      tags:
+        - staff
+        - finish
+      summary: 查询指定用户的非帐号相关资料,一般是与业务有关的信息.
+      operationId: getStaff
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: accountId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          type: string
+          required: true
+      responses:
+        200:
+          description: 非帐号相关的用户资料
+          schema:
+            allOf:
+              - $ref: '#/definitions/IdObject'
+              - $ref: '#/definitions/StaffModel'
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+    post:
+      tags:
+        - staff
+        - finish
+      summary: 设置指定用户的非帐号相关资料
+      operationId: setStaff
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: accountId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/StaffModel'
+      responses:
+        200:
+          description: 用户资料的href地址
+          schema:
+            $ref: '#/definitions/HrefObject'
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
   /projects:
     get:
       tags:
         - project
+        - finish
       summary: 查询项目列表
       operationId: getAllProjects
       consumes:
@@ -570,11 +752,50 @@ paths:
           name: accessToken
           type: string
           required: true
+        - in: query
+          name: filter
+          type: string
+          required: true
+          description: |
+            搜索结果过滤,格式为:
+              key1::value1,key2::value2,keyN,valueN
+            例如:
+              office::001,work_type::3
+            提供的过滤key有:
+            1.office  科室
+            2.work_type 工作类型
+            3.manager 负责人是此帐号id
+            4.person  负责人或者成员包含此帐号id
+        - in: query
+          name: sort
+          type: string
+          required: true
+          description: |
+            搜索结果排序
+              降序为"create_ts::-1"
+              升序为"create_ts::1"
+        - in: query
+          name: totalOnly
+          type: integer
+          required: true
+          description: |
+             当totalOnly为1时,仅返回搜索结果记录的条数,此时仅respond的total有效.
+             当totalOnly为0时,返回实际的搜索结果数据.此时respond的total字段无效.
+        - in: query
+          name: offset
+          required: true
+          type: integer
+          description: 设定搜索结果的起始偏移
+        - in: query
+          name: limit
+          required: true
+          type: integer
+          description: 当limit>0可用于分页,返回一个页数据量.当limit为-1时返回所有数据
       responses:
         200:
           description: 所有项目的href列表
           schema:
-            $ref: '#/definitions/ProjectHrefList'
+            $ref: '#/definitions/ProjectGetAllList'
         default:
           description: Error code definitions
           schema:
@@ -582,6 +803,7 @@ paths:
     post:
       tags:
         - project
+        - finish
       summary: 创建项目
       operationId: createProject
       consumes:
@@ -641,6 +863,7 @@ paths:
     get:
       tags:
         - project
+        - finish
       summary: Get Project By ID
       operationId: getProject
       consumes:
@@ -671,6 +894,7 @@ paths:
     post:
       tags:
         - project
+        - finish
       summary: 更新项目的进度状态
       operationId: setProgress
       consumes:
@@ -704,6 +928,7 @@ paths:
     post:
       tags:
         - project
+        - finish
       summary: 项目信息更新:申报评审相关
       operationId: setProjectApplication
       consumes:
@@ -737,6 +962,7 @@ paths:
     post:
       tags:
         - project
+        - finish
       summary: 项目数据更新:负责人与执行成员
       operationId: setProjectMembers
       consumes:
@@ -777,6 +1003,7 @@ paths:
       tags:
         - project
         - task
+        - finish
       summary: 项目数据更新:任务划分
       operationId: setProjectTasks
       consumes:
@@ -818,6 +1045,9 @@ paths:
                       type: array
                       items:
                         type: string
+                    note:
+                      type: string
+                      description: 任务备注
                     start_ts:
                       description: 开始时间
                       type: integer
@@ -839,6 +1069,7 @@ paths:
     post:
       tags:
         - project
+        - finish
       summary: 项目数据更新:项目结项评审相关
       operationId: setProjectJudgement
       consumes:
@@ -868,10 +1099,84 @@ paths:
           description: Error code definitions
           schema:
             $ref: '#/definitions/ErrorModel'
+  /tasks:
+    get:
+      tags:
+        - task
+        - finish
+      summary: 查询任务列表
+      operationId: getAllTasks
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: accessToken
+          type: string
+          required: true
+        - in: query
+          name: filter
+          type: string
+          required: true
+          description: |
+            搜索结果过滤,格式为:
+              key1::value1,key2::value2,keyN,valueN
+            例如:
+              office::001,work_type::3
+            提供的过滤key有:
+            1.status 任务状态为对应的值
+            2.assign_to 负责人是此帐号id
+            3.executors 执行人员有包含此帐号
+            4.person  负责人或者执行人员包含此帐号id
+            5.project 返回属于此project id下的任务
+        - in: query
+          name: sort
+          type: string
+          required: true
+          description: |
+            搜索结果排序
+              降序为"create_ts::-1"
+              升序为"create_ts::1"
+        - in: query
+          name: totalOnly
+          type: integer
+          required: true
+          description: |
+             当totalOnly为1时,仅返回搜索结果记录的条数,此时仅respond的total有效.
+             当totalOnly为0时,返回实际的搜索结果数据.此时respond的total字段无效.
+        - in: query
+          name: offset
+          required: true
+          type: integer
+          description: 设定搜索结果的起始偏移
+        - in: query
+          name: limit
+          required: true
+          type: integer
+          description: 当limit>0可用于分页,返回一个页数据量.当limit为-1时返回所有数据
+      responses:
+        200:
+          description: 搜索成功返回
+          schema:
+            type: object
+            properties:
+              total:
+                type: integer
+              offset:
+                type: integer
+              limit:
+                type: integer
+              tasks:
+                description: 任务的href列表
+                type: array
+                items:
+                  $ref: "#/definitions/TaskIndex"
   /tasks/{taskId}:
     get:
       tags:
         - task
+        - finish
       summary: 查询任务信息
       operationId: getTask
       consumes:
@@ -896,10 +1201,12 @@ paths:
           description: Error code definitions
           schema:
             $ref: '#/definitions/ErrorModel'
-  /task/{taskId}/status:
+
+  /tasks/{taskId}/status:
     post:
       tags:
         - task
+        - finish
       summary: "修改任务状态：0未完成；1已完成"
       operationId: setTaskStatus
       consumes:
@@ -932,10 +1239,11 @@ paths:
             description: Error code definitions
             schema:
               $ref: '#/definitions/ErrorModel'
-  /task/{taskId}/note:
+  /tasks/{taskId}/note:
     post:
       tags:
         - task
+        - finish
       summary: 修改任务备注
       operationId: setTaskNote
       consumes:
@@ -968,10 +1276,11 @@ paths:
             description: Error code definitions
             schema:
               $ref: '#/definitions/ErrorModel'
-  /task/{taskId}/report:
+  /tasks/{taskId}/report:
     post:
       tags:
         - task
+        - finish
       summary: 更新任务报告
       operationId: setTaskReport
       consumes:
@@ -1033,6 +1342,7 @@ paths:
     get:
       tags:
         - organization
+        - finish
       summary: 查询办公室列表
       operationId: getAllOffices
       consumes:
@@ -1058,10 +1368,11 @@ paths:
                 type: array
                 items:
                   type: string
-  /offices/titles:
+  /titles:
     get:
       tags:
         - organization
+        - finish
       summary: 查询职务列表
       operationId: GetAllTitles
       consumes:
@@ -1100,16 +1411,44 @@ definitions:
         type: integer
       name:
         type: string
-  ProjectHrefList:
+  ProjectGetAllList:
     type: object
     required:
       - projects
     properties:
+      total:
+        type: integer
+        description: 返回搜索结果的记录个数.此字段仅在totalOnly为1时有效
+      offset:
+        type: integer
+      limit:
+        type: integer
       projects:
-        description: 请求数据的href列表
+        description: 请求数据的href列表,此字段仅在totalOnly为0时有效
         type: array
         items:
-          type: string
+          $ref: '#/definitions/ProjectIndex'
+  ProjectIndex:
+    type: object
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      status:
+        type: integer
+      start_ts:
+        type: integer
+        format: int64
+      end_ts:
+        type: integer
+        format: int64
+      manager:
+        type: string
+      office:
+        type: string
+      work_type:
+        type: integer
   ProjectStatus:
     type: object
     properties:
@@ -1232,6 +1571,42 @@ definitions:
         type: string
       report_file:
         type: string
+  TaskIndex:
+    type: object
+    properties:
+      id:
+        description: 任务id
+        type: string
+      name:
+        description: 任务名称
+        type: string
+      content:
+        description: 任务描述
+        type: string
+      assign_to:
+        description: 任务负责人
+        type: string
+      executors:
+        description: 执行小组
+        type: array
+        items:
+          type: string
+      start_ts:
+        description: 开始时间
+        type: integer
+        format: int64
+      end_ts:
+        description: 结束时间
+        type: integer
+        format: int64
+      status:
+        description: 任务状态：0未完成；1已完成
+        type: integer
+        format: int32
+      note:
+        type: string
+      report_file:
+        type: string
   ProjectBasisModel:
     type: object
     properties:
@@ -1303,7 +1678,7 @@ definitions:
         description: 项目结束时间
         type: integer
         format: int64
-      progress:
+      status:
         description: |
           项目进度:
           * 1 申报评审
@@ -1311,7 +1686,7 @@ definitions:
           * 3 项目督办
           * 4 项目结项
         type: integer
-      plan:
+      application:
         $ref: '#/definitions/ProjectApplicationModel'
       tasks:
         description: 项目下所有的任务href数组
@@ -1323,15 +1698,24 @@ definitions:
   AccountModel:
     type: object
     properties:
-      #id:
-      #  description: 用户id
-      #  type: string
       user_name:
         description: 登录名
         type: string
       password:
         description: 密码
         type: string
+      phone:
+        description: 手机号
+        type: string
+      email:
+        type: string
+      create_ts:
+        description: 注册时间
+        type: integer
+        format: int64
+  StaffModel:
+    type: object
+    properties:
       name:
         description: 姓名
         type: string
@@ -1344,9 +1728,6 @@ definitions:
       gender:
         description: "性别: 0-女,1-男"
         type: integer
-      phone:
-        description: 手机号
-        type: string
       office:
         description: 科室id
         type: string
@@ -1361,9 +1742,9 @@ definitions:
           $ref: '#/definitions/RoleModel'
       id_card:
         description: 身份证
+        type: string
       land_line:
         description: 座机
-      email:
         type: string
       qq:
         type: string
@@ -1385,10 +1766,6 @@ definitions:
       contact_address:
         description: 通讯地址
         type: string
-      create_ts:
-        description: 注册时间
-        type: integer
-        format: int64
   TitleModel:
     type: object
     properties:
@@ -1477,4 +1854,3 @@ definitions:
       code: 10000
       message:  "Unexpected error"
       message_ext: ""
-
