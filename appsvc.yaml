@@ -29,7 +29,7 @@ paths:
   /server/version:
     get:
       tags:
-        - finish
+        - authentication
       summary: 返回服务器版本，用于ping测试
       operationId: getServerVersion
       consumes:
@@ -638,7 +638,6 @@ paths:
     get:
       tags:
         - staff
-        - finish
       summary: 查询所有用户的非帐号相关资料(一般是与业务有关的信息)
       operationId: getAllStaff
       consumes:
@@ -650,6 +649,34 @@ paths:
           name: accessToken
           required: true
           type: string
+        - in: query
+          name: filter
+          required: true
+          type: string
+          description: |
+            搜索结果过滤,格式为:
+              key1::value1,key2::value2,keyN::valueN
+            例如:
+              office::001,gender::1
+            提供的过滤key有:
+            1.ac_id 所属帐号id
+            2.name  帐号姓名
+            3.office  科室id
+            4.title   职务id
+            5.gender  性别(0女,1男)
+        - in: query
+          name: sort
+          required: false
+          type: string
+          description: |
+            对搜索结果排序
+            value::1
+            value::-1
+            value可以是name, office, title
+        - in: query
+          name: totalOnly
+          required: false
+          type: integer
         - in: query
           name: offset
           required: true
@@ -664,10 +691,28 @@ paths:
           schema:
             type: object
             properties:
+              total:
+                type: integer
+              offset:
+                type: integer
+              limit:
+                type: integer
               staff:
                 type: array
                 items:
-                  type: string
+                  type: object
+                  properties:
+                    ac_id:
+                      type: string
+                    name:
+                      type: string
+                    office:
+                      type: string
+                    titles:
+                      type: array
+                      items:
+                        type: string
+
         default:
           description: Error code definitions
           schema:
@@ -676,7 +721,6 @@ paths:
     get:
       tags:
         - staff
-        - finish
       summary: 查询指定用户的非帐号相关资料,一般是与业务有关的信息.
       operationId: getStaff
       consumes:
@@ -696,9 +740,7 @@ paths:
         200:
           description: 非帐号相关的用户资料
           schema:
-            allOf:
-              - $ref: '#/definitions/IdObject'
-              - $ref: '#/definitions/StaffModel'
+            $ref: '#/definitions/StaffWithIdModel'
         default:
           description: Error code definitions
           schema:
@@ -706,7 +748,6 @@ paths:
     post:
       tags:
         - staff
-        - finish
       summary: 设置指定用户的非帐号相关资料
       operationId: setStaff
       consumes:
@@ -740,7 +781,6 @@ paths:
     get:
       tags:
         - project
-        - finish
       summary: 查询项目列表
       operationId: getAllProjects
       consumes:
@@ -803,7 +843,6 @@ paths:
     post:
       tags:
         - project
-        - finish
       summary: 创建项目
       operationId: createProject
       consumes:
@@ -833,7 +872,6 @@ paths:
     get:
       tags:
         - project
-        - finish
       summary: 查询项目工作类型列表
       operationId: getWorkTypes
       consumes:
@@ -863,7 +901,6 @@ paths:
     get:
       tags:
         - project
-        - finish
       summary: Get Project By ID
       operationId: getProject
       consumes:
@@ -883,9 +920,7 @@ paths:
         200:
           description: Detail information about selected project
           schema:
-            allOf:
-            - $ref: '#/definitions/IdObject'
-            - $ref: '#/definitions/ProjectDetailModel'
+            $ref: '#/definitions/ProjectDetailWithIdModel'
         default:
           description: Error code definitions
           schema:
@@ -894,8 +929,12 @@ paths:
     post:
       tags:
         - project
-        - finish
-      summary: 更新项目的进度状态
+      summary: 更新项目的进度状态|
+        "项目进度:"
+        * 1 申报评审
+        * 2 项目启动
+        * 3 项目督办
+        * 4 项目结项
       operationId: setProgress
       consumes:
         - application/json
@@ -928,7 +967,6 @@ paths:
     post:
       tags:
         - project
-        - finish
       summary: 项目信息更新:申报评审相关
       operationId: setProjectApplication
       consumes:
@@ -948,10 +986,70 @@ paths:
           name: body
           required: true
           schema:
-            $ref: '#/definitions/ProjectApplicationModel'
+            type: object
+            properties:
+              result:
+                description: |
+                  立项评审结果
+                  0 待评审
+                  1 通过
+                  2 未通过
+                type: integer
+              leader:
+                description: 立项评审负责人
+                type: string
+              members:
+                description: '立项评审团人员'
+                type: array
+                items:
+                  type: string
+              comment:
+                description: '立项评审意见汇总'
+                type: string
+              #application_file:
+              #  description: '立项申请表'
+              #  type: string
+              report_file:
+                description: 立项评审报告
+                type: string
+              approval_file:
+                description: 立项批准书
+                type: string
+              review_ts:
+                description: '立项评审时间'
+                type: integer
+                format: int64
       responses:
         200:
           description: 更新后项目的href
+          schema:
+            $ref: '#/definitions/HrefObject'
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/{projectId}/application/applicationFile:
+    post:
+      tags:
+        - project
+      summary: 上传立项申请表
+      operationId: setProjectApplicationFile
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: projectId
+          type: string
+          required: true
+        - in: query
+          name: accessToken
+          type: string
+          required: true
+      responses:
+        201:
+          description: 返回文件下载url
           schema:
             $ref: '#/definitions/HrefObject'
         default:
@@ -962,7 +1060,6 @@ paths:
     post:
       tags:
         - project
-        - finish
       summary: 项目数据更新:负责人与执行成员
       operationId: setProjectMembers
       consumes:
@@ -994,6 +1091,8 @@ paths:
       responses:
         200:
           description: 返回项目href
+          schema:
+            $ref: '#/definitions/HrefObject'
         default:
           description: Error code definitions
           schema:
@@ -1003,7 +1102,6 @@ paths:
       tags:
         - project
         - task
-        - finish
       summary: 项目数据更新:任务划分
       operationId: setProjectTasks
       consumes:
@@ -1069,7 +1167,6 @@ paths:
     post:
       tags:
         - project
-        - finish
       summary: 项目数据更新:项目结项评审相关
       operationId: setProjectJudgement
       consumes:
@@ -1103,7 +1200,6 @@ paths:
     get:
       tags:
         - task
-        - finish
       summary: 查询任务列表
       operationId: getAllTasks
       consumes:
@@ -1167,6 +1263,9 @@ paths:
                 type: integer
               limit:
                 type: integer
+              now_ts:
+                type: integer
+                format: int64
               tasks:
                 description: 任务的href列表
                 type: array
@@ -1176,7 +1275,6 @@ paths:
     get:
       tags:
         - task
-        - finish
       summary: 查询任务信息
       operationId: getTask
       consumes:
@@ -1206,7 +1304,6 @@ paths:
     post:
       tags:
         - task
-        - finish
       summary: "修改任务状态：0未完成；1已完成"
       operationId: setTaskStatus
       consumes:
@@ -1243,7 +1340,6 @@ paths:
     post:
       tags:
         - task
-        - finish
       summary: 修改任务备注
       operationId: setTaskNote
       consumes:
@@ -1280,7 +1376,6 @@ paths:
     post:
       tags:
         - task
-        - finish
       summary: 更新任务报告
       operationId: setTaskReport
       consumes:
@@ -1342,7 +1437,6 @@ paths:
     get:
       tags:
         - organization
-        - finish
       summary: 查询办公室列表
       operationId: getAllOffices
       consumes:
@@ -1368,11 +1462,14 @@ paths:
                 type: array
                 items:
                   type: string
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
   /titles:
     get:
       tags:
         - organization
-        - finish
       summary: 查询职务列表
       operationId: GetAllTitles
       consumes:
@@ -1389,6 +1486,387 @@ paths:
           description: 返回职务列表
           schema:
             $ref: '#/definitions/TitleModel'
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/files/applicationFile:
+    post:
+      tags:
+        - file
+      summary: |
+        立项申请表上传
+        ---HTML代码示例---
+        # <html>
+        #    <head>
+        #      <title>上传文件</title>
+        #    </head>
+        #    <body>
+        #      <form enctype="multipart/form-data" action="http://119.23.45.58/v1/projects/files/applicationFile" method="post">
+        #       <input type="file" name="uploadfile" />
+        #       <input type="hidden" name="accessToken" value="{accessToken}"/>
+        #       <input type="hidden" name="projectId" value="{projectId}"/>
+        #       <input type="submit" value="upload" />
+        #      </form>
+        #    </body>
+        # </html>
+      consumes:
+        - multipart/form-data
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: accessToken
+          required: true
+          type: string
+        - in: formData
+          name: projectId
+          required: true
+          type: string
+        - in: formData
+          name: uploadfile
+          required: true
+          type: file
+      responses:
+        201:
+          description: 上传成功
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/files/applicationReport:
+    post:
+      tags:
+        - file
+      summary: |
+        立项报告上传.
+        HTML代码参考API:/projects/files/applicationFile
+      consumes:
+        - multipart/form-data
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: accessToken
+          required: true
+          type: string
+        - in: formData
+          name: projectId
+          required: true
+          type: string
+        - in: formData
+          name: uploadfile
+          required: true
+          type: file
+      responses:
+        201:
+          description: 上传成功
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/files/approvalFile:
+    post:
+      tags:
+        - file
+      summary: |
+        立项批准书上传.
+        HTML代码参考API:/projects/files/applicationFile
+      consumes:
+        - multipart/form-data
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: accessToken
+          required: true
+          type: string
+        - in: formData
+          name: projectId
+          required: true
+          type: string
+        - in: formData
+          name: uploadfile
+          required: true
+          type: file
+      responses:
+        201:
+          description: 上传成功
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/files/judgeReport:
+    post:
+      tags:
+        - file
+      summary: |
+        评审报告上传.
+        HTML代码参考API:/projects/files/applicationFile
+      consumes:
+        - multipart/form-data
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: accessToken
+          required: true
+          type: string
+        - in: formData
+          name: projectId
+          required: true
+          type: string
+        - in: formData
+          name: uploadfile
+          required: true
+          type: file
+      responses:
+        201:
+          description: 上传成功
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/files/harvestFile:
+    post:
+      tags:
+        - file
+      summary: |
+        成果报告上传.
+        HTML代码参考API:/projects/files/applicationFile
+      consumes:
+        - multipart/form-data
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: accessToken
+          required: true
+          type: string
+        - in: formData
+          name: projectId
+          required: true
+          type: string
+        - in: formData
+          name: uploadfile
+          required: true
+          type: file
+      responses:
+        201:
+          description: 上传成功
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/files/judgeFile:
+    post:
+      tags:
+        - file
+      summary: |
+        结项评审文件上传.
+        HTML代码参考API:/projects/files/applicationFile
+      consumes:
+        - multipart/form-data
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: accessToken
+          required: true
+          type: string
+        - in: formData
+          name: projectId
+          required: true
+          type: string
+        - in: formData
+          name: uploadfile
+          required: true
+          type: file
+      responses:
+        201:
+          description: 上传成功
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/{projectId}/files/applicationFile:
+    get:
+      tags:
+        - file
+      summary: 立项申请表下载
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        200:
+          description: 浏览器会弹出文件下载窗口
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/{projectId}/files/applicationReport:
+    get:
+      tags:
+        - file
+      summary: 立项报告下载
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        200:
+          description: 浏览器会弹出文件下载窗口
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/{projectId}/files/approvalFile:
+    get:
+      tags:
+        - file
+      summary: 立项批准下载
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        200:
+          description: 浏览器会弹出文件下载窗口
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/{projectId}/files/judgeReport:
+    get:
+      tags:
+        - file
+      summary: 结项报告下载
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        200:
+          description: 浏览器会弹出文件下载窗口
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/{projectId}/files/harvestFile:
+    get:
+      tags:
+        - file
+      summary: 项目成果报告下载
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        200:
+          description: 浏览器会弹出文件下载窗口
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /projects/{projectId}/files/judgeFile:
+    get:
+      tags:
+        - file
+      summary: 结项评审报告下载
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        200:
+          description: 浏览器会弹出文件下载窗口
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /tasks/files/taskReport:
+    post:
+      tags:
+        - file
+      summary: |
+        任务报告上传.
+        HTML代码参考API:/projects/files/applicationFile
+      consumes:
+        - multipart/form-data
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: accessToken
+          required: true
+          type: string
+        - in: formData
+          name: taskId
+          required: true
+          type: string
+        - in: formData
+          name: uploadfile
+          required: true
+          type: file
+      responses:
+        201:
+          description: 上传成功
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
+  /tasks/{taskId}/files/taskReport:
+    get:
+      tags:
+        - file
+      summary: 任务报告下载
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          type: string
+        - in: query
+          name: accessToken
+          required: true
+          type: string
+      responses:
+        200:
+          description: 浏览器会弹出文件下载窗口
+        default:
+          description: Error code definitions
+          schema:
+            $ref: '#/definitions/ErrorModel'
 definitions:
   IdObject:
     type: object
@@ -1423,6 +1901,9 @@ definitions:
         type: integer
       limit:
         type: integer
+      now_ts:
+        type: integer
+        format: int64
       projects:
         description: 请求数据的href列表,此字段仅在totalOnly为0时有效
         type: array
@@ -1449,6 +1930,14 @@ definitions:
         type: string
       work_type:
         type: integer
+      content:
+        type: string
+      executor_count:
+        type: integer
+      manager_avatar:
+        type: string
+      manager_name:
+        type: string
   ProjectStatus:
     type: object
     properties:
@@ -1541,6 +2030,10 @@ definitions:
   TaskModel:
     type: object
     properties:
+      now_ts:
+        description: 当前时间,用于时间校对
+        type: integer
+        format: int64
       name:
         description: 任务名称
         type: string
@@ -1586,11 +2079,19 @@ definitions:
       assign_to:
         description: 任务负责人
         type: string
+      assign_to_name:
+        description: 任务负责人姓名
+        type: string
       executors:
-        description: 执行小组
+        description: 执行小组,包括帐号id及姓名
         type: array
         items:
-          type: string
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
       start_ts:
         description: 开始时间
         type: integer
@@ -1695,6 +2196,75 @@ definitions:
           type: string
       judge:
         $ref: '#/definitions/ProjectJudgementModel'
+  ProjectDetailWithIdModel:
+    type: object
+    properties:
+      now_ts:
+        description: 当前时间,作为标准时间校对
+        type: integer
+        format: int64
+      id:
+        description: id
+        type: string
+      name:
+        description: 项目名称
+        type: string
+      content:
+        description: 项目内容
+        type: string
+      objective:
+        description: 项目目标
+        type: string
+      manager:
+        description: 项目负责人href
+        type: string
+      members:
+        description: 项目成员href
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            gender:
+              type: integer
+            office:
+              type: string
+            phone:
+              type: string
+      office:
+        description: 办公室id
+        type: string
+      work_type:
+        description: 工作类型id
+        type: integer
+      start_ts:
+        description: 项目开始时间
+        type: integer
+        format: int64
+      end_ts:
+        description: 项目结束时间
+        type: integer
+        format: int64
+      status:
+        description: |
+          项目进度:
+          * 1 申报评审
+          * 2 项目启动
+          * 3 项目督办
+          * 4 项目结项
+        type: integer
+      application:
+        $ref: '#/definitions/ProjectApplicationModel'
+      tasks:
+        description: 项目下所有的任务href数组
+        type: array
+        items:
+          type: string
+      judge:
+        $ref: '#/definitions/ProjectJudgementModel'
   AccountModel:
     type: object
     properties:
@@ -1716,6 +2286,62 @@ definitions:
   StaffModel:
     type: object
     properties:
+      name:
+        description: 姓名
+        type: string
+      nick_name:
+        description: 昵称
+        type: string
+      avatar:
+        description: 头像
+        type: string
+      gender:
+        description: "性别: 0-女,1-男"
+        type: integer
+      office:
+        description: 科室id
+        type: string
+      titles:
+        description: 职务id
+        type: array
+        items:
+          type: string
+      roles:
+        type: array
+        items:
+          $ref: '#/definitions/RoleModel'
+      id_card:
+        description: 身份证
+        type: string
+      land_line:
+        description: 座机
+        type: string
+      qq:
+        type: string
+      degree:
+        description: 学历
+        type: string
+      college:
+        description: 毕业院校
+        type: string
+      folk:
+        description: 民族
+        type: string
+      paper:
+        description: 论文
+        type: string
+      home_address:
+        description: 家庭地址
+        type: string
+      contact_address:
+        description: 通讯地址
+        type: string
+  StaffWithIdModel:
+    type: object
+    properties:
+      id:
+        description: id
+        type: string
       name:
         description: 姓名
         type: string
