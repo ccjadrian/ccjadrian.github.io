@@ -5,13 +5,16 @@ import "swagger-ui/dist/swagger-ui.css"
 
 import EditorPlugin from "./plugins/editor"
 import LocalStoragePlugin from "./plugins/local-storage"
-import ValidationPlugin from "./plugins/validation"
-import ValidationApiPlugin from "./plugins/validation/apis"
+import ValidateBasePlugin from "./plugins/validate-base"
+import ValidateSemanticPlugin from "./plugins/validate-semantic"
+import ValidateJsonSchemaPlugin from "./plugins/validate-json-schema"
 import EditorAutosuggestPlugin from "./plugins/editor-autosuggest"
 import EditorAutosuggestSnippetsPlugin from "./plugins/editor-autosuggest-snippets"
 import EditorAutosuggestKeywordsPlugin from "./plugins/editor-autosuggest-keywords"
 import EditorAutosuggestOAS3KeywordsPlugin from "./plugins/editor-autosuggest-oas3-keywords"
 import EditorAutosuggestRefsPlugin from "./plugins/editor-autosuggest-refs"
+import PerformancePlugin from "./plugins/performance"
+import JumpToPathPlugin from "./plugins/jump-to-path"
 
 // eslint-disable-next-line no-undef
 const { GIT_DIRTY, GIT_COMMIT, PACKAGE_VERSION } = buildInfo
@@ -20,18 +23,21 @@ window.versions = window.versions || {}
 window.versions.swaggerEditor = `${PACKAGE_VERSION}/${GIT_COMMIT || "unknown"}${GIT_DIRTY ? "-dirty" : ""}`
 const plugins = {
   EditorPlugin,
-  ValidationPlugin,
-  ValidationApiPlugin,
+  ValidateBasePlugin,
+  ValidateSemanticPlugin,
+  ValidateJsonSchemaPlugin,
   LocalStoragePlugin,
   EditorAutosuggestPlugin,
   EditorAutosuggestSnippetsPlugin,
   EditorAutosuggestKeywordsPlugin,
   EditorAutosuggestRefsPlugin,
   EditorAutosuggestOAS3KeywordsPlugin,
+  PerformancePlugin,
+  JumpToPathPlugin,
 }
 
 const defaults = {
-  dom_id: "#swagger-editor",
+  dom_id: "#swagger-editor", // eslint-disable-line camelcase, we have this prop for legacy reasons.
   layout: "EditorLayout",
   presets: [
     SwaggerUI.presets.apis
@@ -40,6 +46,9 @@ const defaults = {
   components: {
     EditorLayout
   },
+  showExtensions: true,
+  swagger2GeneratorUrl: "https://generator.swagger.io/api/swagger.json",
+  oas3GeneratorUrl: "https://generator3.swagger.io/api/swagger.json"
 }
 
 module.exports = function SwaggerEditor(options) {

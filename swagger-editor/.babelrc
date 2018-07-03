@@ -5,12 +5,19 @@
     "stage-0"
   ],
   "plugins": [
+  "transform-runtime",
+  "transform-async-to-generator",
+  "transform-es2015-constants",
   [
     "module-alias",
     [
       {
         "expose": "plugins",
         "src": "src/plugins"
+      },
+      {
+        "expose": "test",
+        "src": "test"
       },
       {
         "expose": "src",

@@ -1,12 +1,18 @@
-import React, { PropTypes } from "react"
+import React from "react"
+import PropTypes from "prop-types"
 import AceEditor from "react-ace"
 import editorPluginsHook from "../editor-plugins/hook"
 import { placeMarkerDecorations } from "../editor-helpers/marker-placer"
 import Im, { fromJS } from "immutable"
 import ImPropTypes from "react-immutable-proptypes"
 
-import eq from "lodash/eq"
+import win from "src/window"
+
+import isUndefined from "lodash/isUndefined"
+import omit from "lodash/omit"
+import isEqual from "lodash/isEqual"
 import isEmpty from "lodash/isEmpty"
+import debounce from "lodash/debounce"
 
 import ace from "brace"
 import "brace/mode/yaml"
@@ -19,43 +25,77 @@ import "./editor.less"
 
 const NOOP = Function.prototype // Apparently the best way to no-op
 
-
 export default function makeEditor({ editorPluginsToRun }) {
 
   class Editor extends React.Component {
 
     constructor(props, context) {
       super(props, context)
-      if(props.value) {
-        this.yaml = props.value
-      }
-      this.state = {
-        editor: null,
-        value: props.value || "",
-      }
 
-      // see https://gist.github.com/Restuta/e400a555ba24daa396cc
-      this.onClick = this.onClick.bind(this)
+      this.editor = null
+
+      this.debouncedOnChange = props.debounce > 0
+        ? debounce(props.onChange, props.debounce)
+        : props.onChange
     }
 
-    onChange = (value) => {
-      // Set the value in state, now - so that we don't have lag
-      this.setState({ value })
-      // Send it upstream
-      this.props.onChange(value)
+    static propTypes = {
+      specId: PropTypes.string,
+      value: PropTypes.string,
+      editorOptions: PropTypes.object,
+      origin: PropTypes.string,
+      debounce: PropTypes.number,
+
+      onChange: PropTypes.func,
+      onMarkerLineUpdate: PropTypes.func,
+
+      markers: PropTypes.object,
+      goToLine: PropTypes.object,
+      specObject: PropTypes.object.isRequired,
+
+      editorActions: PropTypes.object,
+
+      AST: PropTypes.object.isRequired,
+
+      errors: ImPropTypes.list,
+    }
+
+    static defaultProps = {
+      value: "",
+      specId: "--unknown--",
+      origin: "not-editor",
+      onChange: NOOP,
+      onMarkerLineUpdate: NOOP,
+      markers: {},
+      goToLine: {},
+      errors: fromJS([]),
+      editorActions: {onLoad(){}},
+      editorOptions: {},
+      debounce: 800 // 0.5 imperial seconds™
+
+    }
+
+    checkForSilentOnChange = (value) => {
+      if(!this.silent) {
+        this.debouncedOnChange(value)
+      }
     }
 
     onLoad = (editor) => {
-      let { props, state } = this
-      let { AST, specObject } = props
 
-      let langTools = ace.acequire("ace/ext/language_tools")
+      const { props } = this
+      const { AST, specObject } = props
 
-      state.editor = editor // TODO: get editor out of state
-      editor.getSession().setUseWrapMode(true)
+      const langTools = ace.acequire("ace/ext/language_tools")
+      const session = editor.getSession()
 
-      let session = editor.getSession()
+      this.editor = editor
 
+      // fixes a warning, see https://github.com/ajaxorg/ace/issues/2499
+      editor.$blockScrolling = Infinity
+
+
+      session.setUseWrapMode(true)
       session.on("changeScrollLeft", xPos => { // eslint-disable-line no-unused-vars
         session.setScrollLeft(0)
       })
@@ -65,15 +105,17 @@ export default function makeEditor({ editorPluginsToRun }) {
         langTools, AST, specObject
       })
 
-
       editor.setHighlightActiveLine(false)
       editor.setHighlightActiveLine(true)
+      this.syncOptionsFromState(props.editorOptions)
+      if(props.editorActions && props.editorActions.onLoad)
+        props.editorActions.onLoad({...props, langTools, editor})
 
-      props.editorActions.onLoad({...props, langTools, editor})
+      this.updateMarkerAnnotations(this.props)
     }
 
     onResize = () => {
-      let { state: { editor } } = this
+      const { editor } = this
       if(editor) {
         let session = editor.getSession()
         editor.resize()
@@ -85,21 +127,20 @@ export default function makeEditor({ editorPluginsToRun }) {
     onClick = () => {
       // onClick is deferred by 40ms, to give element resizes time to settle.
       setTimeout(() => {
-        if(this.getWidth() !== this.state.width) {
+        if(this.getWidth() !== this.width) {
           this.onResize()
-          this.setState({ width: this.getWidth() })
+          this.width = this.getWidth()
         }
       }, 40)
     }
 
     getWidth = () => {
-      let el = document.getElementById("editor-wrapper")
-
+      let el = win.document.getElementById("editor-wrapper")
       return el ? el.getBoundingClientRect().width : null
     }
 
     updateErrorAnnotations = (nextProps) => {
-      if(this.state.editor && nextProps.errors) {
+      if(this.editor && nextProps.errors) {
         let editorAnnotations = nextProps.errors.toJS().map(err => {
           // Create annotation objects that ACE can use
           return {
@@ -110,164 +151,148 @@ export default function makeEditor({ editorPluginsToRun }) {
           }
         })
 
-        this.state.editor.getSession().setAnnotations(editorAnnotations)
+        this.editor.getSession().setAnnotations(editorAnnotations)
       }
     }
 
-    setReadOnlyOptions = (nextProps) => {
-      let { state } = this
+    updateMarkerAnnotations = (props) => {
+      const { editor } = this
 
-      if(nextProps.readOnly === true && state.editor) {
-        state.editor.setOptions({
-          readOnly: true,
-          highlightActiveLine: false,
-          highlightGutterLine: false
-        })
-      } else if(state.editor) {
-        state.editor.setOptions({
-          readOnly: false,
-          highlightActiveLine: true,
-          highlightGutterLine: true
-        })
+      const markers = Im.Map.isMap(props.markers) ? props.markers.toJS() : {}
+      this.removeMarkers = placeMarkerDecorations({
+        editor,
+        markers,
+        onMarkerLineUpdate: props.onMarkerLineUpdate,
+      })
+    }
+
+    updateYamlIfOrigin = (props) => {
+      if(props.origin !== "editor") {
+        this.updateYaml(props)
       }
     }
 
-    updateMarkerAnnotations = (nextProps, { force } = {}) => {
-      let { state } = this
-      let { onMarkerLineUpdate } = nextProps
+    updateYaml = (props) => {
+      // this.silent is taken from react-ace module. It avoids firing onChange, when we update setValue
+      this.silent = true
+      const pos = this.editor.session.selection.toJSON()
+      this.editor.setValue(props.value)
+      this.editor.session.selection.fromJSON(pos)
+      this.silent = false
+    }
 
-      // FIXME: this is a hacky solution.
-      // we should find a way to wait until the spec has been loaded into ACE.
-      if(force === true || this.props.specId !== nextProps.specId || !Im.is(this.props.markers, nextProps.markers)) {
-        const markers = Im.Map.isMap(nextProps.markers) ? nextProps.markers.toJS() : {}
-        setTimeout(placeMarkerDecorations.bind(null, {
-          editor: state.editor,
-          markers,
-          onMarkerLineUpdate,
-        }), 300)
+    syncOptionsFromState = (editorOptions={}) => {
+      const { editor } = this
+      if(!editor) {
+        return
       }
+
+      const setOptions = omit(editorOptions, ["readOnly"])
+      editor.setOptions(setOptions)
+
+
+      const readOnly = isUndefined(editorOptions.readOnly)
+            ? false
+            : editorOptions.readOnly // If its undefined, default to false.
+      editor.setReadOnly(readOnly)
     }
 
     componentWillMount() {
       // add user agent info to document
       // allows our custom Editor styling for IE10 to take effect
-      var doc = document.documentElement
-      doc.setAttribute("data-useragent", navigator.userAgent)
+      var doc = win.document.documentElement
+      doc.setAttribute("data-useragent", win.navigator.userAgent)
+      this.syncOptionsFromState(this.props.editorOptions)
     }
 
     componentDidMount() {
       // eslint-disable-next-line react/no-did-mount-set-state
-      this.setState({ width: this.getWidth() })
-      document.addEventListener("click", this.onClick)
 
-      if(this.props.markers) {
-        this.updateMarkerAnnotations({ markers: this.props.markers }, { force: true })
-      }
-    }
-
-    componentWillReceiveProps(nextProps) {
-      let { state } = this
-      let hasChanged = (k) => !eq(nextProps[k], this.props[k])
-      let wasEmptyBefore = (k) => nextProps[k] && (!this.props[k] || isEmpty(this.props[k]))
-
-      this.updateErrorAnnotations(nextProps)
-      this.setReadOnlyOptions(nextProps)
-      this.updateMarkerAnnotations(nextProps)
-
-      if(state.editor && nextProps.goToLine && hasChanged("goToLine")) {
-        state.editor.gotoLine(nextProps.goToLine.line)
-      }
-
-      this.setState({
-        shouldClearUndoStack: hasChanged("specId") || wasEmptyBefore("value"),
-      })
-
-    }
-
-    yaml = this.yaml || "";
-
-    shouldComponentUpdate(nextProps) {
-      const oriYaml = this.yaml
-      this.yaml = nextProps.value
-
-      return oriYaml !== nextProps.value
-    }
-
-    render() {
-      let { readOnly } = this.props
-      const value = this.yaml
-
-      return (
-            <AceEditor
-              value={value}
-              mode="yaml"
-              theme="tomorrow_night_eighties"
-              onLoad={this.onLoad}
-              onChange={this.onChange}
-              name="ace-editor"
-              width="100%"
-              height="100%"
-              tabSize={2}
-              fontSize={14}
-              readOnly={readOnly}
-              useSoftTabs="true"
-              wrapEnabled={true}
-              editorProps={{
-                "display_indent_guides": true,
-                folding: "markbeginandend"
-              }}
-              setOptions={{
-                cursorStyle: "smooth",
-                wrapBehavioursEnabled: true
-              }}
-            />
-      )
-    }
-
-    componentDidUpdate() {
-      let { shouldClearUndoStack, editor } = this.state
-
-      if(shouldClearUndoStack) {
-        setTimeout(function () {
-          editor.getSession().getUndoManager().reset()
-        }, 100)
-      }
-
+      this.width = this.getWidth()
+      win.document.addEventListener("click", this.onClick)
     }
 
     componentWillUnmount() {
-      document.removeEventListener("click", this.onClick)
+      win.document.removeEventListener("click", this.onClick)
     }
 
-  }
+    componentWillReceiveProps(nextProps) {
+      let hasChanged = (k) => !isEqual(nextProps[k], this.props[k])
+      let wasEmptyBefore = (k) => nextProps[k] && (!this.props[k] || isEmpty(this.props[k]))
+      const editor = this.editor
 
-  Editor.propTypes = {
-    specId: PropTypes.string,
-    value: PropTypes.string,
+      // Change the debounce value/func
+      if(this.props.debounce !== nextProps.debounce) {
+        if(this.debouncedOnChange.flush)
+          this.debouncedOnChange.flush()
 
-    onChange: PropTypes.func,
-    onMarkerLineUpdate: PropTypes.func,
+        this.debouncedOnChange = nextProps.debounce > 0
+          ? debounce(nextProps.onChange, nextProps.debounce)
+          : nextProps.onChange
+      }
 
-    readOnly: PropTypes.bool,
+      // Remove markers
+      if(this.removeMarkers) {
+        this.removeMarkers()
+      }
 
-    markers: PropTypes.object,
-    goToLine: PropTypes.object,
-    specObject: PropTypes.object.isRequired,
+      this.updateYamlIfOrigin(nextProps)
 
-    AST: PropTypes.object.isRequired,
+      // Add back the markers
+      this.updateMarkerAnnotations(nextProps)
+      this.updateErrorAnnotations(nextProps)
 
-    errors: ImPropTypes.list,
-  }
+      // Clear undo-stack if we've changed specId or it was empty before
+      if(hasChanged("specId") || wasEmptyBefore("value")) {
+        setTimeout(function () {
+          editor.getSession().getUndoManager().reset()
+        }, 100) // TODO: get rid of timeout
+      }
 
-  Editor.defaultProps = {
-    value: "",
-    specId: "--unknown--",
-    onChange: NOOP,
-    onMarkerLineUpdate: NOOP,
-    markers: {},
-    readOnly: false,
-    goToLine: {},
-    errors: fromJS([]),
+      if(hasChanged("editorOptions")) {
+        this.syncOptionsFromState(nextProps.editorOptions)
+      }
+
+      if(editor && nextProps.goToLine && nextProps.goToLine.line && hasChanged("goToLine")) {
+        editor.gotoLine(nextProps.goToLine.line)
+        nextProps.editorActions.jumpToLine(null)
+      }
+
+    }
+
+    shouldComponentUpdate() {
+      return false // Never update, see: componentWillRecieveProps and this.updateYaml for where we update things.
+    }
+
+    render() {
+      // NOTE: we're manually managing the value lifecycle, outside of react render
+      // This will only render once.
+      return (
+        <AceEditor
+          mode="yaml"
+          theme="tomorrow_night_eighties"
+          value={this.props.value /* This will only load once, thereafter it'll be via updateYaml */}
+          onLoad={this.onLoad}
+          onChange={this.checkForSilentOnChange}
+          name="ace-editor"
+          width="100%"
+          height="100%"
+          tabSize={2}
+          fontSize={14}
+          useSoftTabs="true"
+          wrapEnabled={true}
+          editorProps={{
+            "display_indent_guides": true,
+            folding: "markbeginandend"
+          }}
+          setOptions={{
+            cursorStyle: "smooth",
+            wrapBehavioursEnabled: true
+          }}
+          />
+      )
+    }
+
   }
 
   return Editor

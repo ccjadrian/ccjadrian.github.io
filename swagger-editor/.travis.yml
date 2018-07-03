@@ -1,14 +1,16 @@
 language: node_js
+cache:
+  directories:
+    - node_modules
 node_js:
 - '6.9'
 services:
   - docker
+install: "npm i && npm update"
 branches:
   only:
   - master
   - /^v\d+\.\d+(\.\d+)?(-\S*)?$/
-before_deploy:
-  - "npm run build"
 env:
   - DOCKER_IMAGE_NAME=swaggerapi/swagger-editor
 deploy:
@@ -28,23 +30,25 @@ deploy:
       tags: true
       repo: swagger-api/swagger-editor
       node: '6.9'
+  - provider: script
+    skip_cleanup: true
+    script: "sh build-tools/deploy-docker-hub-tag.sh"
+    on:
+      tags: true
+      repo: swagger-api/swagger-editor
+      node: '6.9'
 after_success:
-  - if [ $DOCKER_HUB_USERNAME ]; then
-      docker login --email=$DOCKER_HUB_EMAIL --username=$DOCKER_HUB_USERNAME --password=$DOCKER_HUB_PASSWORD;
+  # artifacts from this `npm run build` are used in the deploy step as well
+  - |
+    if [ $TRAVIS_PULL_REQUEST == "false" ]; then
+      npm run build
+      if [ $DOCKER_HUB_USERNAME ]; then
+          docker login --username=$DOCKER_HUB_USERNAME --password=$DOCKER_HUB_PASSWORD;
 
-      if [ ! -z "$TRAVIS_TAG" ]; then
-        DOCKER_IMAGE_TAG=$TRAVIS_TAG;
-      else
-        DOCKER_IMAGE_TAG=unstable;
-      fi;
-      docker build -t $DOCKER_IMAGE_NAME .;
-      if [ ! -z "$TRAVIS_TAG" ]; then
-        docker tag $DOCKER_IMAGE_NAME $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG;
-        docker push $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG;
-        docker tag $DOCKER_IMAGE_NAME $DOCKER_IMAGE_NAME:latest;
-        docker push $DOCKER_IMAGE_NAME:latest;
-      else
-        docker tag $DOCKER_IMAGE_NAME $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG;
-        docker push $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG;
-      fi;
+          DOCKER_IMAGE_TAG=unstable;
+
+          docker build -t $DOCKER_IMAGE_NAME .;
+          docker tag $DOCKER_IMAGE_NAME $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG;
+          docker push $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG;
+        fi;
     fi;

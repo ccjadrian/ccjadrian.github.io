@@ -1,17 +1,17 @@
 import makeEditor from "./components/editor"
 import EditorContainer from "./components/editor-container"
-import JumpToPath from "./components/jump-to-path"
 import * as actions from "./actions"
 import reducers from "./reducers"
 import * as selectors from "./selectors"
+import EditorSpecPlugin from "./spec"
 
 let Editor = makeEditor({
   editorPluginsToRun: ["gutterClick", "jsonToYaml", "pasteHandler"]
 })
 
 export default function () {
-  return {
-    components: { Editor, EditorContainer, JumpToPath },
+  return [EditorSpecPlugin, {
+    components: { Editor, EditorContainer },
     statePlugins: {
       editor: {
         reducers,
@@ -19,5 +19,5 @@ export default function () {
         selectors
       }
     }
-  }
+  }]
 }
